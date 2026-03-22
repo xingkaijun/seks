@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEKS 知识检索台</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #121a33;
+      --muted: #97a0b7;
+      --text: #e9ecf5;
+      --accent: #6aa7ff;
+      --bad: #ff6a6a;
+      --ok: #41d19a;
+      --border: rgba(255,255,255,0.09);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 800px at 10% -10%, rgba(106,167,255,0.35), transparent 50%), var(--bg);
+      color: var(--text);
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 18px 36px; }
+    header { padding: 24px 0 8px; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    .sub { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+    .bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 16px 0 0; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      padding: 8px 10px;
+      border-radius: 999px;
+      max-width: 100%;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; box-shadow: 0 0 0 2px rgba(255,255,255,0.06) inset; }
+    .dot.ok { background: var(--ok); }
+    .dot.bad { background: var(--bad); }
+
+    input[type="text"], input[type="number"], textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 10px;
+      border-radius: 10px;
+      outline: none;
+    }
+    input::placeholder, textarea::placeholder { color: rgba(233,236,245,0.35); }
+    textarea { min-height: 92px; resize: vertical; }
+
+    button {
+      background: linear-gradient(180deg, rgba(106,167,255,0.95), rgba(106,167,255,0.75));
+      color: #071024;
+      border: 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .grid-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+    .grid-bottom { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+    @media (max-width: 980px) {
+      .grid-top { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: rgba(18,26,51,0.86);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .card h2 {
+      margin: 0;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      font-size: 16px;
+    }
+    .card .body { padding: 16px; }
+    .section-desc {
+      margin: 0 0 14px;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+
+    .row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; margin: 10px 0; }
+    .row.full { grid-template-columns: 1fr; }
+    .row label { font-size: 13px; color: var(--muted); }
+    .hint { margin-top: 6px; font-size: 12px; color: rgba(151,160,183,0.88); line-height: 1.6; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+    .out {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .out .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .err {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,106,106,0.10);
+      color: rgba(233,236,245,0.92);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    pre {
+      margin: 0;
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .search-list { display: grid; gap: 12px; }
+    .hit-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.03);
+      overflow: hidden;
+    }
+    .hit-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .hit-title { font-size: 13px; font-weight: 700; }
+    .hit-sub { font-size: 12px; color: var(--muted); }
+    .hit-body { padding: 12px; }
+    .hit-snippet {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      max-height: 10.5em;
+      overflow: hidden;
+    }
+    .hit-snippet.expanded { max-height: none; }
+    .hit-meta-line {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .tips ul {
+      margin: 0;
+      padding-left: 18px;
+      color: rgba(233,236,245,0.92);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+    .footer { margin-top: 16px; color: rgba(151,160,183,0.85); font-size: 12px; }
+    code { font-family: var(--mono); }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <h1>SEKS 知识检索台</h1>
+    <div class="sub">给造船/工程资料做入库、检索和问答的轻量页面。上半区先查、先问；下半区再做资料入库，适合日常快速使用。</div>
+
+    <div class="bar">
+      <div class="pill" title="API 基础地址，留空表示与当前页面同源">
+        <span style="color: var(--muted); font-size: 12px;">API 地址</span>
+        <input id="baseUrl" type="text" placeholder="留空=当前页面同源" style="width: 320px; padding: 7px 10px; border-radius: 999px;" />
+        <button class="secondary" id="btnHealth">刷新健康状态</button>
+      </div>
+      <div class="pill">
+        <span class="dot" id="healthDot"></span>
+        <span style="font-size: 12px; color: var(--muted);">健康检查</span>
+        <span style="font-size: 12px;" id="healthText">未知</span>
+      </div>
+      <div class="pill" title="当前页面来源" style="max-width: 520px;">
+        <span style="font-size: 12px; color: var(--muted);">当前来源</span>
+        <span id="originText" style="font-size: 12px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="grid-top">
+      <section class="card">
+        <h2>问答（Ask）</h2>
+        <div class="body">
+          <p class="section-desc">适合直接提问题。系统会先检索相关片段，再给出整理后的答案；如果配置了 LLM，会尽量生成更自然的最终回答。</p>
+
+          <div class="row full">
+            <label>问题</label>
+            <div>
+              <textarea id="ask_q" placeholder="例如：Hull welding spec 用哪个 WPS？"></textarea>
+              <div class="hint">快捷键：Ctrl / ⌘ + Enter 可直接提交。</div>
+            </div>
+          </div>
+          <div class="row">
+            <label>返回条数 top_k</label>
+            <input id="ask_topk" type="number" placeholder="8" value="8" />
+          </div>
+          <div class="row">
+            <label>按书名过滤</label>
+            <input id="ask_ft_title" type="text" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>按章节过滤</label>
+            <input id="ask_ft_chapter" type="text" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>起始页码</label>
+            <input id="ask_ft_ps" type="number" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>结束页码</label>
+            <input id="ask_ft_pe" type="number" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>领域标签</label>
+            <input id="ask_ft_tag" type="text" placeholder="可选，例如 welding" />
+          </div>
+
+          <details style="margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02);">
+            <summary style="cursor:pointer; padding: 12px 14px; color: var(--muted); font-size: 13px;">LLM 高级设置（可选）</summary>
+            <div style="padding: 0 14px 14px;">
+              <div class="hint">这里可以临时控制本次 Ask 是否启用 LLM、使用哪个模型、温度多少。API 地址和 Key 仍然走服务端配置，不在页面暴露。</div>
+              <div class="row">
+                <label>启用 LLM</label>
+                <input id="ask_llm_enabled" type="text" placeholder="留空=跟随服务端；可填 true / false" />
+              </div>
+              <div class="row">
+                <label>模型名</label>
+                <input id="ask_llm_model" type="text" placeholder="留空=跟随服务端，例如 gpt-5.2" />
+              </div>
+              <div class="row">
+                <label>温度</label>
+                <input id="ask_llm_temp" type="number" step="0.1" placeholder="留空=跟随服务端，例如 0.2" />
+              </div>
+            </div>
+          </details>
+
+          <div class="actions">
+            <button id="btnAsk">提交问答</button>
+            <button class="secondary" id="btnAskClear">清空</button>
+          </div>
+
+          <div class="out" id="askOut" style="display:none;">
+            <div class="meta"><span id="askMeta"></span><span id="askTime"></span></div>
+            <div class="err" id="askErr" style="display:none;"></div>
+            <div style="padding: 12px;">
+              <div style="font-size:12px; color: var(--muted);">回答</div>
+              <pre id="askAnswer" style="font-size: 13px;"></pre>
+              <div style="height: 10px;"></div>
+              <div style="font-size:12px; color: var(--muted);">引用来源</div>
+              <div id="askCitations"></div>
+            </div>
+            <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
+              <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
+              <pre id="askPre"></pre>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>检索（Search）</h2>
+        <div class="body">
+          <p class="section-desc">适合先看原文证据。检索结果会直接展示命中的片段，便于你判断资料有没有入对、搜对。</p>
+
+          <div class="row full">
+            <label>检索词</label>
+            <input id="sea_query" type="text" placeholder="例如：WPS-001 / sea trial / transformer capacity" />
+          </div>
+          <div class="row">
+            <label>返回条数 top_k</label>
+            <input id="sea_topk" type="number" placeholder="10" value="10" />
+          </div>
+          <div class="row">
+            <label>按书名过滤</label>
+            <input id="sea_ft_title" type="text" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>按章节过滤</label>
+            <input id="sea_ft_chapter" type="text" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>起始页码</label>
+            <input id="sea_ft_ps" type="number" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>结束页码</label>
+            <input id="sea_ft_pe" type="number" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>领域标签</label>
+            <input id="sea_ft_tag" type="text" placeholder="可选，例如 spec" />
+          </div>
+
+          <div class="actions">
+            <button id="btnSearch">执行检索</button>
+            <button class="secondary" id="btnSearchClear">清空</button>
+          </div>
+          <div class="hint">建议先用 Search 看原文，再决定是否用 Ask 让系统整理答案。</div>
+
+          <div class="out" id="searchOut" style="display:none;">
+            <div class="meta"><span id="searchMeta"></span><span id="searchTime"></span></div>
+            <div class="err" id="searchErr" style="display:none;"></div>
+            <div id="searchTableWrap"></div>
+            <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
+              <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
+              <pre id="searchPre"></pre>
+            </details>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid-bottom">
+      <section class="card">
+        <h2>资料入库（Ingest）</h2>
+        <div class="body">
+          <p class="section-desc">把新书或新文档写入知识库。注意这里填写的是 <strong>API 容器内可见路径</strong>，不是浏览器本地文件上传路径。</p>
+
+          <div class="row">
+            <label>文件路径 file_path</label>
+            <div>
+              <input id="ing_file" type="text" placeholder="/data/library/xxx.pdf" />
+              <div class="hint">常用写法：先把文件放到宿主机 <code>/home/kjxing/data/bookrag/library/</code>，再在这里填容器路径 <code>/data/library/文件名.pdf</code>。</div>
+            </div>
+          </div>
+          <div class="row">
+            <label>书名 title</label>
+            <input id="ing_title" type="text" placeholder="必填，例如 Hull Construction Guide" />
+          </div>
+          <div class="row">
+            <label>作者 author</label>
+            <input id="ing_author" type="text" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>版本 edition</label>
+            <input id="ing_edition" type="text" placeholder="可选" />
+          </div>
+          <div class="row">
+            <label>出版年份 publish_year</label>
+            <input id="ing_year" type="number" placeholder="可选，例如 2024" />
+          </div>
+          <div class="row">
+            <label>领域标签 domain_tags</label>
+            <input id="ing_tags" type="text" placeholder="可选，逗号分隔，例如 结构,焊接,规范" />
+          </div>
+
+          <div class="actions">
+            <button id="btnIngest">执行入库</button>
+            <button class="secondary" id="btnIngestClear">清空</button>
+          </div>
+
+          <div class="out" id="ingestOut" style="display:none;">
+            <div class="meta"><span id="ingestMeta"></span><span id="ingestTime"></span></div>
+            <div class="err" id="ingestErr" style="display:none;"></div>
+            <pre id="ingestPre"></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="card tips">
+        <h2>使用说明</h2>
+        <div class="body">
+          <p class="section-desc">下面这些点最容易踩坑，先看一遍能省不少时间。</p>
+          <ul>
+            <li>页面默认与当前 API 同源调用，通常直接打开 <code>http://127.0.0.1:18080/</code> 就能用。</li>
+            <li>如果 API 在别处运行，可在顶部填写“API 地址”，例如 <code>http://127.0.0.1:18080</code> 或 Tailscale 域名。</li>
+            <li>如果你是直接双击 HTML 用 <code>file://</code> 打开，浏览器通常会因为 CORS 拒绝请求；建议始终从 API 页面入口打开。</li>
+            <li>当前支持入库的文件类型主要是 <code>.txt</code>、<code>.md</code>、<code>.pdf</code>。</li>
+            <li>如果改了 embedding 模型，旧文档建议重新 ingest，避免向量空间混用。</li>
+            <li>如果给 <code>/ask</code> 配好了 LLM，回答模式会从 retrieval-only 提升为 LLM RAG；若 LLM 失效，会自动退回检索整理模式。</li>
+          </ul>
+          <div class="footer">前端文件：<code>app/static/index.html</code></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function nowStr() {
+      const d = new Date();
+      return d.toLocaleString();
+    }
+
+    function base() {
+      const raw = $("baseUrl").value.trim();
+      if (!raw) return "";
+      return raw.replace(/\/+$/, "");
+    }
+
+    function safeOrigin() {
+      try {
+        return window.location.origin || '';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    async function api(path, options = {}) {
+      const url = `${base()}${path}`;
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options,
+      });
+      const text = await res.text();
+      let data;
+      try { data = text ? JSON.parse(text) : null; } catch (_) { data = text; }
+      if (!res.ok) {
+        const detail = typeof data === 'object' && data ? (data.detail || JSON.stringify(data)) : String(data || res.statusText);
+        throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+      }
+      return data;
+    }
+
+    function setHealth(ok, text) {
+      const dot = $("healthDot");
+      dot.classList.remove("ok", "bad");
+      if (ok === true) dot.classList.add("ok");
+      if (ok === false) dot.classList.add("bad");
+      $("healthText").textContent = text;
+    }
+
+    async function refreshHealth() {
+      setHealth(null, "检查中...");
+      try {
+        const data = await api("/healthz", { method: "GET" });
+        setHealth(Boolean(data.ok), data.ok ? "正常" : "异常");
+      } catch (e) {
+        setHealth(false, "请求失败");
+      }
+    }
+
+    function parseFilters(prefix) {
+      const title = $(`${prefix}_ft_title`).value.trim();
+      const chapter = $(`${prefix}_ft_chapter`).value.trim();
+      const page_start = $(`${prefix}_ft_ps`).value.trim();
+      const page_end = $(`${prefix}_ft_pe`).value.trim();
+      const domain_tag = $(`${prefix}_ft_tag`).value.trim();
+      const filters = {};
+      if (title) filters.title = title;
+      if (chapter) filters.chapter = chapter;
+      if (page_start) filters.page_start = Number(page_start);
+      if (page_end) filters.page_end = Number(page_end);
+      if (domain_tag) filters.domain_tag = domain_tag;
+      return Object.keys(filters).length ? filters : null;
+    }
+
+    function showBox(prefix, meta, payload, err = null) {
+      $(`${prefix}Out`).style.display = "block";
+      $(`${prefix}Meta`).textContent = meta;
+      $(`${prefix}Time`).textContent = nowStr();
+      const errEl = $(`${prefix}Err`);
+      if (err) {
+        errEl.style.display = "block";
+        errEl.textContent = String(err);
+      } else {
+        errEl.style.display = "none";
+        errEl.textContent = "";
+      }
+      const pre = document.getElementById(`${prefix}Pre`);
+      if (pre) pre.textContent = JSON.stringify(payload, null, 2);
+    }
+
+    function clearBox(prefix) {
+      $(`${prefix}Out`).style.display = "none";
+      const errEl = $(`${prefix}Err`);
+      if (errEl) {
+        errEl.style.display = "none";
+        errEl.textContent = "";
+      }
+      const pre = document.getElementById(`${prefix}Pre`);
+      if (pre) pre.textContent = "";
+    }
+
+    function renderCitations(citations = []) {
+      const wrap = $("askCitations");
+      wrap.innerHTML = "";
+      if (!citations.length) {
+        wrap.innerHTML = '<div class="hint">暂无引用。</div>';
+        return;
+      }
+      const html = citations.map((c, idx) => {
+        const parts = [];
+        if (c.chapter) parts.push(c.chapter);
+        if (c.page_start !== null || c.page_end !== null) parts.push(`页码 ${c.page_start}-${c.page_end}`);
+        const meta = parts.length ? `（${parts.join("，")}）` : "";
+        return `<div class="hint">[${idx + 1}] 《${c.book}》${meta} · chunk_id=${c.chunk_id}</div>`;
+      }).join("");
+      wrap.innerHTML = html;
+    }
+
+    function renderSearchHits(hits = []) {
+      const wrap = $("searchTableWrap");
+      if (!hits.length) {
+        wrap.innerHTML = '<div style="padding:12px; color: var(--muted); font-size: 13px;">没有命中结果。</div>';
+        return;
+      }
+
+      const rows = hits.map((hit, idx) => {
+        const loc = [];
+        if (hit.chapter) loc.push(hit.chapter);
+        if (hit.page_start !== null || hit.page_end !== null) loc.push(`页码 ${hit.page_start}-${hit.page_end}`);
+        const meta = loc.map(v => `<span class="badge">${v}</span>`).join(' ');
+        const snippet = String(hit.chunk_text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `
+          <div class="hit-card">
+            <div class="hit-head">
+              <div>
+                <div class="hit-title">${idx + 1}. ${hit.book || '未命名书籍'}</div>
+                <div class="hit-sub">chunk_id=${hit.chunk_id} · score=${hit.score ?? ''}</div>
+              </div>
+              <div class="hit-sub">${meta || ''}</div>
+            </div>
+            <div class="hit-body">
+              <div class="hit-meta-line">
+                <span class="badge">原文片段</span>
+              </div>
+              <pre class="hit-snippet">${snippet}</pre>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      wrap.innerHTML = `<div class="search-list">${rows}</div>`;
+    }
+
+    async function doIngest() {
+      const payload = {
+        file_path: $("ing_file").value.trim(),
+        title: $("ing_title").value.trim(),
+        author: $("ing_author").value.trim() || null,
+        edition: $("ing_edition").value.trim() || null,
+        publish_year: $("ing_year").value.trim() ? Number($("ing_year").value.trim()) : null,
+        domain_tags: $("ing_tags").value.trim() ? $("ing_tags").value.split(',').map(s => s.trim()).filter(Boolean) : [],
+      };
+      try {
+        const data = await api("/ingest", { method: "POST", body: JSON.stringify(payload) });
+        showBox("ingest", `入库成功 · chunk_count=${data.chunk_count ?? '?'} · book_id=${data.book_id ?? '?'}`, data);
+      } catch (e) {
+        showBox("ingest", "入库失败", payload, e.message || String(e));
+      }
+    }
+
+    async function doSearch() {
+      const payload = {
+        query: $("sea_query").value.trim(),
+        top_k: Number($("sea_topk").value || 10),
+      };
+      const filters = parseFilters("sea");
+      if (filters) payload.filters = filters;
+      try {
+        const data = await api("/search", { method: "POST", body: JSON.stringify(payload) });
+        showBox("search", `检索完成 · hits=${(data.hits || []).length}`, data);
+        renderSearchHits(data.hits || []);
+      } catch (e) {
+        showBox("search", "检索失败", payload, e.message || String(e));
+        $("searchTableWrap").innerHTML = "";
+      }
+    }
+
+    async function doAsk() {
+      const payload = {
+        question: $("ask_q").value.trim(),
+        top_k: Number($("ask_topk").value || 8),
+      };
+      const filters = parseFilters("ask");
+      if (filters) payload.filters = filters;
+
+      const llmEnabledRaw = $("ask_llm_enabled").value.trim().toLowerCase();
+      const llmModelRaw = $("ask_llm_model").value.trim();
+      const llmTempRaw = $("ask_llm_temp").value.trim();
+      if (llmEnabledRaw === "true") payload.llm_enabled = true;
+      if (llmEnabledRaw === "false") payload.llm_enabled = false;
+      if (llmModelRaw) payload.llm_model = llmModelRaw;
+      if (llmTempRaw) payload.llm_temperature = Number(llmTempRaw);
+
+      try {
+        const data = await api("/ask", { method: "POST", body: JSON.stringify(payload) });
+        showBox("ask", `问答完成 · mode=${data.mode || 'unknown'} · citations=${(data.citations || []).length}`, data);
+        $("askAnswer").textContent = data.answer || "";
+        renderCitations(data.citations || []);
+      } catch (e) {
+        showBox("ask", "问答失败", payload, e.message || String(e));
+        $("askAnswer").textContent = "";
+        renderCitations([]);
+      }
+    }
+
+    function clearIngest() {
+      ["ing_file", "ing_title", "ing_author", "ing_edition", "ing_year", "ing_tags"].forEach(id => $(id).value = "");
+      clearBox("ingest");
+    }
+    function clearSearch() {
+      ["sea_query", "sea_topk", "sea_ft_title", "sea_ft_chapter", "sea_ft_ps", "sea_ft_pe", "sea_ft_tag"].forEach((id, i) => {
+        $(id).value = id === "sea_topk" ? "10" : "";
+      });
+      $("searchTableWrap").innerHTML = "";
+      clearBox("search");
+    }
+    function clearAsk() {
+      ["ask_q", "ask_topk", "ask_ft_title", "ask_ft_chapter", "ask_ft_ps", "ask_ft_pe", "ask_ft_tag", "ask_llm_enabled", "ask_llm_model", "ask_llm_temp"].forEach(id => {
+        $(id).value = id === "ask_topk" ? "8" : "";
+      });
+      $("askAnswer").textContent = "";
+      $("askCitations").innerHTML = "";
+      clearBox("ask");
+    }
+
+    $("originText").textContent = safeOrigin() || "(unknown)";
+    $("btnHealth").addEventListener("click", refreshHealth);
+    $("btnIngest").addEventListener("click", doIngest);
+    $("btnSearch").addEventListener("click", doSearch);
+    $("btnAsk").addEventListener("click", doAsk);
+    $("btnIngestClear").addEventListener("click", clearIngest);
+    $("btnSearchClear").addEventListener("click", clearSearch);
+    $("btnAskClear").addEventListener("click", clearAsk);
+    $("ask_q").addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") doAsk();
+    });
+
+    refreshHealth();
+  </script>
+</body>
+</html>

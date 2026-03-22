@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: seks-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: seks
+      POSTGRES_USER: seks
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - /home/kjxing/data/bookrag/postgres:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seks -d seks"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 2g
+    cpus: 1.5
+
+  api:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: seks-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://seks:${POSTGRES_PASSWORD}@postgres:5432/seks
+      LIBRARY_DIR: /data/library
+      EXTRACTED_DIR: /data/extracted
+      CACHE_DIR: /data/cache
+      LOG_DIR: /data/logs
+    ports:
+      - "127.0.0.1:18080:8000"
+    volumes:
+      - /home/kjxing/data/bookrag/library:/data/library
+      - /home/kjxing/data/bookrag/extracted:/data/extracted
+      - /home/kjxing/data/bookrag/cache:/data/cache
+      - /home/kjxing/data/bookrag/logs:/data/logs
+    mem_limit: 2g
+    cpus: 2.0

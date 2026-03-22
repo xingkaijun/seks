@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# Virtualenvs
+.venv/
+venv/
+ENV/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Git
+.git/
+
+# Local data / caches
+cache/
+data/
+logs/
+
+# Docker artifacts
+*.log
