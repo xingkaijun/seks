@@ -5,9 +5,13 @@ from fastapi.staticfiles import StaticFiles
 from ask import ask_documents
 from db import test_connection
 from ingest import ingest_document
+from library import delete_book, get_book_detail, list_books
 from schemas import (
     AskRequest,
     AskResponse,
+    BookDetailResponse,
+    BookListResponse,
+    DeleteResponse,
     HealthResponse,
     IngestRequest,
     IngestResponse,
@@ -58,5 +62,33 @@ async def search(payload: SearchRequest) -> SearchResponse:
 async def ask(payload: AskRequest) -> AskResponse:
     try:
         return await ask_documents(payload)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/books", response_model=BookListResponse)
+async def books() -> BookListResponse:
+    try:
+        return list_books()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/books/{book_id}", response_model=BookDetailResponse)
+async def book_detail(book_id: int) -> BookDetailResponse:
+    try:
+        return get_book_detail(book_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.delete("/books/{book_id}", response_model=DeleteResponse)
+async def book_delete(book_id: int) -> DeleteResponse:
+    try:
+        return delete_book(book_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

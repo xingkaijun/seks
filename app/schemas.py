@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -81,3 +82,50 @@ class AskResponse(BaseModel):
     sources: list[SearchHit] = Field(default_factory=list)
     mode: str = "retrieval_only"
     debug: dict[str, Any] | None = None
+
+
+class BookListItem(BaseModel):
+    id: int
+    title: str
+    file_path: str
+    file_name: str
+    folder: str
+    chunk_count: int
+    domain_tags: list[str] = Field(default_factory=list)
+    page_count: int | None = None
+    created_at: datetime | None = None
+
+
+class BookListResponse(BaseModel):
+    books: list[BookListItem]
+
+
+class ChapterSummary(BaseModel):
+    chapter: str | None = None
+    section: str | None = None
+    page_start: int | None = None
+    page_end: int | None = None
+    chunk_count: int = 0
+    summary: str = ""
+
+
+class BookDetailResponse(BaseModel):
+    id: int
+    title: str
+    author: str | None = None
+    edition: str | None = None
+    publish_year: int | None = None
+    domain_tags: list[str] = Field(default_factory=list)
+    file_path: str
+    file_name: str
+    folder: str
+    page_count: int | None = None
+    chunk_count: int
+    created_at: datetime | None = None
+    chapters: list[ChapterSummary] = Field(default_factory=list)
+
+
+class DeleteResponse(BaseModel):
+    status: str = "ok"
+    book_id: int
+    title: str | None = None

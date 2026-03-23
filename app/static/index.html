@@ -74,12 +74,37 @@
       border: 1px solid var(--border);
       font-weight: 600;
     }
+    button.danger {
+      background: rgba(255, 106, 106, 0.16);
+      border: 1px solid rgba(255, 106, 106, 0.5);
+      color: #ffd5d5;
+    }
     button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .tabs { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    .tab-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      color: #08101f;
+      border-color: rgba(106,167,255,0.7);
+      background: linear-gradient(180deg, rgba(106,167,255,0.95), rgba(106,167,255,0.75));
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
     .grid-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
     .grid-bottom { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+    .grid-library { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-top: 18px; }
     @media (max-width: 980px) {
       .grid-top { grid-template-columns: 1fr; }
+      .grid-library { grid-template-columns: 1fr; }
     }
 
     .card {
@@ -173,7 +198,6 @@
       max-height: 10.5em;
       overflow: hidden;
     }
-    .hit-snippet.expanded { max-height: none; }
     .hit-meta-line {
       display: flex;
       gap: 12px;
@@ -189,7 +213,32 @@
       border-radius: 999px;
       padding: 2px 8px;
       background: rgba(255,255,255,0.04);
+      font-size: 12px;
     }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; min-width: 680px; }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 650; background: rgba(255,255,255,0.02); }
+    tr.selected { background: rgba(106,167,255,0.12); }
+    tr:hover { background: rgba(255,255,255,0.05); }
+
+    .meta-grid { display: grid; gap: 10px; }
+    .meta-item { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: start; }
+    .meta-label { font-size: 12px; color: var(--muted); }
+    .meta-value { font-size: 13px; word-break: break-word; }
+
+    .chapter-list { display: grid; gap: 10px; margin-top: 12px; }
+    .chapter-item { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); }
+    .chapter-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+    .chapter-title { font-size: 13px; font-weight: 650; }
+    .chapter-summary { font-size: 12px; color: rgba(233,236,245,0.9); line-height: 1.6; }
 
     .tips ul {
       margin: 0;
@@ -200,12 +249,33 @@
     }
     .footer { margin-top: 16px; color: rgba(151,160,183,0.85); font-size: 12px; }
     code { font-family: var(--mono); }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 10, 20, 0.72);
+      z-index: 50;
+      padding: 16px;
+    }
+    .modal-card {
+      width: min(420px, 96vw);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+    }
+    .modal-title { margin: 0 0 6px; font-size: 16px; }
+    .modal-desc { margin: 0 0 12px; font-size: 13px; color: var(--muted); line-height: 1.6; }
   </style>
 </head>
 <body>
   <header class="wrap">
     <h1>SEKS 知识检索台</h1>
-    <div class="sub">给造船/工程资料做入库、检索和问答的轻量页面。上半区先查、先问；下半区再做资料入库，适合日常快速使用。</div>
+    <div class="sub">给造船/工程资料做入库、检索和问答的轻量页面。上半区先查、先问；书库管理页负责入库与资料维护。</div>
 
     <div class="bar">
       <div class="pill" title="API 基础地址，留空表示与当前页面同源">
@@ -223,206 +293,259 @@
         <span id="originText" style="font-size: 12px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
       </div>
     </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="qa">检索问答</button>
+      <button class="tab-btn" data-tab="library">书库管理</button>
+    </div>
   </header>
 
   <main class="wrap">
-    <div class="grid-top">
-      <section class="card">
-        <h2>问答（Ask）</h2>
-        <div class="body">
-          <p class="section-desc">适合直接提问题。系统会先检索相关片段，再给出整理后的答案；如果配置了 LLM，会尽量生成更自然的最终回答。</p>
+    <section id="tab-qa" class="tab-panel active">
+      <div class="grid-top">
+        <section class="card">
+          <h2>问答（Ask）</h2>
+          <div class="body">
+            <p class="section-desc">适合直接提问题。系统会先检索相关片段，再给出整理后的答案；如果配置了 LLM，会尽量生成更自然的最终回答。</p>
 
-          <div class="row full">
-            <label>问题</label>
-            <div>
-              <textarea id="ask_q" placeholder="例如：Hull welding spec 用哪个 WPS？"></textarea>
-              <div class="hint">快捷键：Ctrl / ⌘ + Enter 可直接提交。</div>
-            </div>
-          </div>
-          <div class="row">
-            <label>返回条数 top_k</label>
-            <input id="ask_topk" type="number" placeholder="8" value="8" />
-          </div>
-          <div class="row">
-            <label>按书名过滤</label>
-            <input id="ask_ft_title" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>按章节过滤</label>
-            <input id="ask_ft_chapter" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>起始页码</label>
-            <input id="ask_ft_ps" type="number" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>结束页码</label>
-            <input id="ask_ft_pe" type="number" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>领域标签</label>
-            <input id="ask_ft_tag" type="text" placeholder="可选，例如 welding" />
-          </div>
-
-          <details style="margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02);">
-            <summary style="cursor:pointer; padding: 12px 14px; color: var(--muted); font-size: 13px;">LLM 高级设置（可选）</summary>
-            <div style="padding: 0 14px 14px;">
-              <div class="hint">这里可以临时控制本次 Ask 是否启用 LLM、使用哪个模型、温度多少。API 地址和 Key 仍然走服务端配置，不在页面暴露。</div>
-              <div class="row">
-                <label>启用 LLM</label>
-                <input id="ask_llm_enabled" type="text" placeholder="留空=跟随服务端；可填 true / false" />
-              </div>
-              <div class="row">
-                <label>模型名</label>
-                <input id="ask_llm_model" type="text" placeholder="留空=跟随服务端，例如 gpt-5.2" />
-              </div>
-              <div class="row">
-                <label>温度</label>
-                <input id="ask_llm_temp" type="number" step="0.1" placeholder="留空=跟随服务端，例如 0.2" />
+            <div class="row full">
+              <label>问题</label>
+              <div>
+                <textarea id="ask_q" placeholder="例如：Hull welding spec 用哪个 WPS？"></textarea>
+                <div class="hint">快捷键：Ctrl / ⌘ + Enter 可直接提交。</div>
               </div>
             </div>
-          </details>
-
-          <div class="actions">
-            <button id="btnAsk">提交问答</button>
-            <button class="secondary" id="btnAskClear">清空</button>
-          </div>
-
-          <div class="out" id="askOut" style="display:none;">
-            <div class="meta"><span id="askMeta"></span><span id="askTime"></span></div>
-            <div class="err" id="askErr" style="display:none;"></div>
-            <div style="padding: 12px;">
-              <div style="font-size:12px; color: var(--muted);">回答</div>
-              <pre id="askAnswer" style="font-size: 13px;"></pre>
-              <div style="height: 10px;"></div>
-              <div style="font-size:12px; color: var(--muted);">引用来源</div>
-              <div id="askCitations"></div>
+            <div class="row">
+              <label>返回条数 top_k</label>
+              <input id="ask_topk" type="number" placeholder="8" value="8" />
             </div>
-            <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
-              <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
-              <pre id="askPre"></pre>
+            <div class="row">
+              <label>按书名过滤</label>
+              <input id="ask_ft_title" type="text" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>按章节过滤</label>
+              <input id="ask_ft_chapter" type="text" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>起始页码</label>
+              <input id="ask_ft_ps" type="number" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>结束页码</label>
+              <input id="ask_ft_pe" type="number" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>领域标签</label>
+              <input id="ask_ft_tag" type="text" placeholder="可选，例如 welding" />
+            </div>
+
+            <details style="margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02);">
+              <summary style="cursor:pointer; padding: 12px 14px; color: var(--muted); font-size: 13px;">LLM 高级设置（可选）</summary>
+              <div style="padding: 0 14px 14px;">
+                <div class="hint">这里可以临时控制本次 Ask 是否启用 LLM、使用哪个模型、温度多少。API 地址和 Key 仍然走服务端配置，不在页面暴露。</div>
+                <div class="row">
+                  <label>启用 LLM</label>
+                  <input id="ask_llm_enabled" type="text" placeholder="留空=跟随服务端；可填 true / false" />
+                </div>
+                <div class="row">
+                  <label>模型名</label>
+                  <input id="ask_llm_model" type="text" placeholder="留空=跟随服务端，例如 gpt-5.2" />
+                </div>
+                <div class="row">
+                  <label>温度</label>
+                  <input id="ask_llm_temp" type="number" step="0.1" placeholder="留空=跟随服务端，例如 0.2" />
+                </div>
+              </div>
             </details>
-          </div>
-        </div>
-      </section>
 
-      <section class="card">
-        <h2>检索（Search）</h2>
-        <div class="body">
-          <p class="section-desc">适合先看原文证据。检索结果会直接展示命中的片段，便于你判断资料有没有入对、搜对。</p>
+            <div class="actions">
+              <button id="btnAsk">提交问答</button>
+              <button class="secondary" id="btnAskClear">清空</button>
+            </div>
 
-          <div class="row full">
-            <label>检索词</label>
-            <input id="sea_query" type="text" placeholder="例如：WPS-001 / sea trial / transformer capacity" />
-          </div>
-          <div class="row">
-            <label>返回条数 top_k</label>
-            <input id="sea_topk" type="number" placeholder="10" value="10" />
-          </div>
-          <div class="row">
-            <label>按书名过滤</label>
-            <input id="sea_ft_title" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>按章节过滤</label>
-            <input id="sea_ft_chapter" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>起始页码</label>
-            <input id="sea_ft_ps" type="number" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>结束页码</label>
-            <input id="sea_ft_pe" type="number" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>领域标签</label>
-            <input id="sea_ft_tag" type="text" placeholder="可选，例如 spec" />
-          </div>
-
-          <div class="actions">
-            <button id="btnSearch">执行检索</button>
-            <button class="secondary" id="btnSearchClear">清空</button>
-          </div>
-          <div class="hint">建议先用 Search 看原文，再决定是否用 Ask 让系统整理答案。</div>
-
-          <div class="out" id="searchOut" style="display:none;">
-            <div class="meta"><span id="searchMeta"></span><span id="searchTime"></span></div>
-            <div class="err" id="searchErr" style="display:none;"></div>
-            <div id="searchTableWrap"></div>
-            <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
-              <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
-              <pre id="searchPre"></pre>
-            </details>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <div class="grid-bottom">
-      <section class="card">
-        <h2>资料入库（Ingest）</h2>
-        <div class="body">
-          <p class="section-desc">把新书或新文档写入知识库。注意这里填写的是 <strong>API 容器内可见路径</strong>，不是浏览器本地文件上传路径。</p>
-
-          <div class="row">
-            <label>文件路径 file_path</label>
-            <div>
-              <input id="ing_file" type="text" placeholder="/data/library/xxx.pdf" />
-              <div class="hint">常用写法：先把文件放到宿主机 <code>/home/kjxing/data/bookrag/library/</code>，再在这里填容器路径 <code>/data/library/文件名.pdf</code>。</div>
+            <div class="out" id="askOut" style="display:none;">
+              <div class="meta"><span id="askMeta"></span><span id="askTime"></span></div>
+              <div class="err" id="askErr" style="display:none;"></div>
+              <div style="padding: 12px;">
+                <div style="font-size:12px; color: var(--muted);">回答</div>
+                <pre id="askAnswer" style="font-size: 13px;"></pre>
+                <div style="height: 10px;"></div>
+                <div style="font-size:12px; color: var(--muted);">引用来源</div>
+                <div id="askCitations"></div>
+              </div>
+              <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
+                <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
+                <pre id="askPre"></pre>
+              </details>
             </div>
           </div>
-          <div class="row">
-            <label>书名 title</label>
-            <input id="ing_title" type="text" placeholder="必填，例如 Hull Construction Guide" />
-          </div>
-          <div class="row">
-            <label>作者 author</label>
-            <input id="ing_author" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>版本 edition</label>
-            <input id="ing_edition" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>出版年份 publish_year</label>
-            <input id="ing_year" type="number" placeholder="可选，例如 2024" />
-          </div>
-          <div class="row">
-            <label>领域标签 domain_tags</label>
-            <input id="ing_tags" type="text" placeholder="可选，逗号分隔，例如 结构,焊接,规范" />
-          </div>
+        </section>
 
-          <div class="actions">
-            <button id="btnIngest">执行入库</button>
-            <button class="secondary" id="btnIngestClear">清空</button>
-          </div>
+        <section class="card">
+          <h2>检索（Search）</h2>
+          <div class="body">
+            <p class="section-desc">适合先看原文证据。检索结果会直接展示命中的片段，便于你判断资料有没有入对、搜对。</p>
 
-          <div class="out" id="ingestOut" style="display:none;">
-            <div class="meta"><span id="ingestMeta"></span><span id="ingestTime"></span></div>
-            <div class="err" id="ingestErr" style="display:none;"></div>
-            <pre id="ingestPre"></pre>
-          </div>
-        </div>
-      </section>
+            <div class="row full">
+              <label>检索词</label>
+              <input id="sea_query" type="text" placeholder="例如：WPS-001 / sea trial / transformer capacity" />
+            </div>
+            <div class="row">
+              <label>返回条数 top_k</label>
+              <input id="sea_topk" type="number" placeholder="10" value="10" />
+            </div>
+            <div class="row">
+              <label>按书名过滤</label>
+              <input id="sea_ft_title" type="text" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>按章节过滤</label>
+              <input id="sea_ft_chapter" type="text" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>起始页码</label>
+              <input id="sea_ft_ps" type="number" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>结束页码</label>
+              <input id="sea_ft_pe" type="number" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>领域标签</label>
+              <input id="sea_ft_tag" type="text" placeholder="可选，例如 spec" />
+            </div>
 
-      <section class="card tips">
-        <h2>使用说明</h2>
-        <div class="body">
-          <p class="section-desc">下面这些点最容易踩坑，先看一遍能省不少时间。</p>
-          <ul>
-            <li>页面默认与当前 API 同源调用，通常直接打开 <code>http://127.0.0.1:18080/</code> 就能用。</li>
-            <li>如果 API 在别处运行，可在顶部填写“API 地址”，例如 <code>http://127.0.0.1:18080</code> 或 Tailscale 域名。</li>
-            <li>如果你是直接双击 HTML 用 <code>file://</code> 打开，浏览器通常会因为 CORS 拒绝请求；建议始终从 API 页面入口打开。</li>
-            <li>当前支持入库的文件类型主要是 <code>.txt</code>、<code>.md</code>、<code>.pdf</code>。</li>
-            <li>如果改了 embedding 模型，旧文档建议重新 ingest，避免向量空间混用。</li>
-            <li>如果给 <code>/ask</code> 配好了 LLM，回答模式会从 retrieval-only 提升为 LLM RAG；若 LLM 失效，会自动退回检索整理模式。</li>
-          </ul>
-          <div class="footer">前端文件：<code>app/static/index.html</code></div>
-        </div>
-      </section>
-    </div>
+            <div class="actions">
+              <button id="btnSearch">执行检索</button>
+              <button class="secondary" id="btnSearchClear">清空</button>
+            </div>
+            <div class="hint">建议先用 Search 看原文，再决定是否用 Ask 让系统整理答案。</div>
+
+            <div class="out" id="searchOut" style="display:none;">
+              <div class="meta"><span id="searchMeta"></span><span id="searchTime"></span></div>
+              <div class="err" id="searchErr" style="display:none;"></div>
+              <div id="searchTableWrap"></div>
+              <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
+                <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
+                <pre id="searchPre"></pre>
+              </details>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid-bottom">
+        <section class="card tips">
+          <h2>使用说明</h2>
+          <div class="body">
+            <p class="section-desc">下面这些点最容易踩坑，先看一遍能省不少时间。</p>
+            <ul>
+              <li>页面默认与当前 API 同源调用，通常直接打开 <code>http://127.0.0.1:18080/</code> 就能用。</li>
+              <li>如果 API 在别处运行，可在顶部填写“API 地址”，例如 <code>http://127.0.0.1:18080</code> 或 Tailscale 域名。</li>
+              <li>如果你是直接双击 HTML 用 <code>file://</code> 打开，浏览器通常会因为 CORS 拒绝请求；建议始终从 API 页面入口打开。</li>
+              <li>当前支持入库的文件类型主要是 <code>.txt</code>、<code>.md</code>、<code>.pdf</code>。</li>
+              <li>如果改了 embedding 模型，旧文档建议重新 ingest，避免向量空间混用。</li>
+              <li>如果给 <code>/ask</code> 配好了 LLM，回答模式会从 retrieval-only 提升为 LLM RAG；若 LLM 失效，会自动退回检索整理模式。</li>
+            </ul>
+            <div class="footer">前端文件：<code>app/static/index.html</code></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="tab-library" class="tab-panel">
+      <div class="grid-library">
+        <section class="card">
+          <h2>书库列表</h2>
+          <div class="body">
+            <p class="section-desc">展示当前已入库的资料，可查看详情或删除。删除后对应 chunks 会被一并清理。</p>
+
+            <div class="row">
+              <label>筛选关键词</label>
+              <input id="lib_filter" type="text" placeholder="按书名 / 文件名 / 文件夹 / 标签过滤" />
+            </div>
+            <div class="actions">
+              <button id="btnLibRefresh">刷新列表</button>
+              <button class="secondary" id="btnLibClear">清空选择</button>
+            </div>
+            <div class="hint" id="bookListMeta"></div>
+            <div id="bookTableWrap" style="margin-top: 10px;"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>书籍详情</h2>
+          <div class="body">
+            <p class="section-desc">选中书籍后会展示元信息与章节/小节摘要，便于快速了解内容结构。</p>
+            <div id="bookDetailWrap">
+              <div class="hint">尚未选择任何书籍。</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid-bottom">
+        <section class="card">
+          <h2>资料入库（Ingest）</h2>
+          <div class="body">
+            <p class="section-desc">把新书或新文档写入知识库。注意这里填写的是 <strong>API 容器内可见路径</strong>，不是浏览器本地文件上传路径。</p>
+
+            <div class="row">
+              <label>文件路径 file_path</label>
+              <div>
+                <input id="ing_file" type="text" placeholder="/data/library/xxx.pdf" />
+                <div class="hint">常用写法：先把文件放到宿主机 <code>/home/kjxing/data/bookrag/library/</code>，再在这里填容器路径 <code>/data/library/文件名.pdf</code>。</div>
+              </div>
+            </div>
+            <div class="row">
+              <label>书名 title</label>
+              <input id="ing_title" type="text" placeholder="必填，例如 Hull Construction Guide" />
+            </div>
+            <div class="row">
+              <label>作者 author</label>
+              <input id="ing_author" type="text" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>版本 edition</label>
+              <input id="ing_edition" type="text" placeholder="可选" />
+            </div>
+            <div class="row">
+              <label>出版年份 publish_year</label>
+              <input id="ing_year" type="number" placeholder="可选，例如 2024" />
+            </div>
+            <div class="row">
+              <label>领域标签 domain_tags</label>
+              <input id="ing_tags" type="text" placeholder="可选，逗号分隔，例如 结构,焊接,规范" />
+            </div>
+
+            <div class="actions">
+              <button id="btnIngest">执行入库</button>
+              <button class="secondary" id="btnIngestClear">清空</button>
+            </div>
+
+            <div class="out" id="ingestOut" style="display:none;">
+              <div class="meta"><span id="ingestMeta"></span><span id="ingestTime"></span></div>
+              <div class="err" id="ingestErr" style="display:none;"></div>
+              <pre id="ingestPre"></pre>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
   </main>
+
+  <div class="modal" id="confirmModal">
+    <div class="modal-card">
+      <h3 class="modal-title">确认删除</h3>
+      <p class="modal-desc" id="confirmText">删除后不可恢复。</p>
+      <div class="err" id="confirmErr" style="display:none;"></div>
+      <div class="actions" style="margin-top: 12px;">
+        <button class="danger" id="confirmDelete">确认删除</button>
+        <button class="secondary" id="confirmCancel">取消</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
@@ -443,6 +566,26 @@
         return window.location.origin || '';
       } catch (_) {
         return '';
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDate(value) {
+      if (!value) return '-';
+      try {
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleString();
+      } catch (_) {
+        return String(value);
       }
     }
 
@@ -534,7 +677,7 @@
         if (c.chapter) parts.push(c.chapter);
         if (c.page_start !== null || c.page_end !== null) parts.push(`页码 ${c.page_start}-${c.page_end}`);
         const meta = parts.length ? `（${parts.join("，")}）` : "";
-        return `<div class="hint">[${idx + 1}] 《${c.book}》${meta} · chunk_id=${c.chunk_id}</div>`;
+        return `<div class="hint">[${idx + 1}] 《${escapeHtml(c.book)}》${meta} · chunk_id=${c.chunk_id}</div>`;
       }).join("");
       wrap.innerHTML = html;
     }
@@ -550,13 +693,13 @@
         const loc = [];
         if (hit.chapter) loc.push(hit.chapter);
         if (hit.page_start !== null || hit.page_end !== null) loc.push(`页码 ${hit.page_start}-${hit.page_end}`);
-        const meta = loc.map(v => `<span class="badge">${v}</span>`).join(' ');
-        const snippet = String(hit.chunk_text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const meta = loc.map(v => `<span class="badge">${escapeHtml(v)}</span>`).join(' ');
+        const snippet = escapeHtml(String(hit.chunk_text || ''));
         return `
           <div class="hit-card">
             <div class="hit-head">
               <div>
-                <div class="hit-title">${idx + 1}. ${hit.book || '未命名书籍'}</div>
+                <div class="hit-title">${idx + 1}. ${escapeHtml(hit.book || '未命名书籍')}</div>
                 <div class="hit-sub">chunk_id=${hit.chunk_id} · score=${hit.score ?? ''}</div>
               </div>
               <div class="hit-sub">${meta || ''}</div>
@@ -585,7 +728,12 @@
       };
       try {
         const data = await api("/ingest", { method: "POST", body: JSON.stringify(payload) });
-        showBox("ingest", `入库成功 · chunk_count=${data.chunk_count ?? '?'} · book_id=${data.book_id ?? '?'}`, data);
+        const meta = `入库成功 · chunk_count=${data.chunk_count ?? '?'} · book_id=${data.book_id ?? '?'}${data.existing ? ' · 已覆盖旧版本' : ''}`;
+        showBox("ingest", meta, data);
+        await loadBookList();
+        if (data.book_id) {
+          await selectBook(data.book_id);
+        }
       } catch (e) {
         showBox("ingest", "入库失败", payload, e.message || String(e));
       }
@@ -656,6 +804,202 @@
       clearBox("ask");
     }
 
+    let bookCache = [];
+    let selectedBookId = null;
+    let pendingDeleteId = null;
+
+    async function loadBookList() {
+      $("bookTableWrap").innerHTML = '<div class="hint">加载中...</div>';
+      try {
+        const data = await api("/books", { method: "GET" });
+        bookCache = data.books || [];
+        $("bookListMeta").textContent = `共 ${bookCache.length} 本书`;
+        applyBookFilter();
+      } catch (e) {
+        $("bookTableWrap").innerHTML = `<div class="err">加载失败：${escapeHtml(e.message || String(e))}</div>`;
+      }
+    }
+
+    function applyBookFilter() {
+      const keyword = $("lib_filter").value.trim().toLowerCase();
+      if (!keyword) {
+        renderBookList(bookCache);
+        return;
+      }
+      const filtered = bookCache.filter((b) => {
+        const tags = (b.domain_tags || []).join(' ');
+        const text = `${b.title || ''} ${b.file_name || ''} ${b.folder || ''} ${tags}`.toLowerCase();
+        return text.includes(keyword);
+      });
+      renderBookList(filtered);
+    }
+
+    function renderBookList(list) {
+      const wrap = $("bookTableWrap");
+      if (!list.length) {
+        wrap.innerHTML = '<div class="hint">暂无匹配书籍。</div>';
+        return;
+      }
+
+      const rows = list.map((b) => {
+        const tags = (b.domain_tags || []).length
+          ? (b.domain_tags || []).map(t => `<span class="badge">${escapeHtml(t)}</span>`).join(' ')
+          : '<span class="hint">-</span>';
+        const selected = b.id === selectedBookId ? 'selected' : '';
+        return `
+          <tr data-book-id="${b.id}" class="${selected}">
+            <td>${escapeHtml(b.title || '未命名')}</td>
+            <td>${escapeHtml(b.file_name || '-')}</td>
+            <td>${escapeHtml(b.folder || '-')}</td>
+            <td>${b.chunk_count ?? 0}</td>
+            <td>${tags}</td>
+            <td>
+              <button class="secondary" data-action="detail">详情</button>
+              <button class="danger" data-action="delete">删除</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      wrap.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>书名</th>
+                <th>文件名</th>
+                <th>文件夹</th>
+                <th>chunk数</th>
+                <th>标签</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function selectBook(bookId) {
+      if (!bookId) return;
+      selectedBookId = Number(bookId);
+      $("bookDetailWrap").innerHTML = '<div class="hint">加载详情中...</div>';
+      applyBookFilter();
+      try {
+        const data = await api(`/books/${bookId}`, { method: "GET" });
+        renderBookDetail(data);
+      } catch (e) {
+        $("bookDetailWrap").innerHTML = `<div class="err">加载详情失败：${escapeHtml(e.message || String(e))}</div>`;
+      }
+    }
+
+    function renderBookDetail(detail) {
+      if (!detail) {
+        $("bookDetailWrap").innerHTML = '<div class="hint">尚未选择任何书籍。</div>';
+        return;
+      }
+
+      const tags = (detail.domain_tags || []).length
+        ? (detail.domain_tags || []).map(t => `<span class="badge">${escapeHtml(t)}</span>`).join(' ')
+        : '<span class="hint">-</span>';
+
+      const meta = `
+        <div class="meta-grid">
+          <div class="meta-item"><span class="meta-label">书名</span><span class="meta-value">${escapeHtml(detail.title)}</span></div>
+          <div class="meta-item"><span class="meta-label">作者</span><span class="meta-value">${escapeHtml(detail.author || '-')}</span></div>
+          <div class="meta-item"><span class="meta-label">版本</span><span class="meta-value">${escapeHtml(detail.edition || '-')}</span></div>
+          <div class="meta-item"><span class="meta-label">出版年份</span><span class="meta-value">${detail.publish_year ?? '-'}</span></div>
+          <div class="meta-item"><span class="meta-label">页数</span><span class="meta-value">${detail.page_count ?? '-'}</span></div>
+          <div class="meta-item"><span class="meta-label">chunk数</span><span class="meta-value">${detail.chunk_count ?? 0}</span></div>
+          <div class="meta-item"><span class="meta-label">文件路径</span><span class="meta-value">${escapeHtml(detail.file_path || '-')}</span></div>
+          <div class="meta-item"><span class="meta-label">标签</span><span class="meta-value">${tags}</span></div>
+          <div class="meta-item"><span class="meta-label">入库时间</span><span class="meta-value">${formatDate(detail.created_at)}</span></div>
+        </div>
+      `;
+
+      const chapters = detail.chapters || [];
+      let chapterHtml = '';
+      if (!chapters.length) {
+        chapterHtml = '<div class="hint">暂无章节/小节结构，可能是纯文本或未解析。</div>';
+      } else {
+        chapterHtml = `<div class="chapter-list">${chapters.map((c) => {
+          const title = [c.chapter, c.section].filter(Boolean).join(' / ') || '未识别章节';
+          const pageInfo = (c.page_start !== null || c.page_end !== null)
+            ? `页码 ${c.page_start ?? '?'}-${c.page_end ?? '?'}`
+            : '页码未知';
+          return `
+            <div class="chapter-item">
+              <div class="chapter-head">
+                <span class="chapter-title">${escapeHtml(title)}</span>
+                <span class="badge">${pageInfo}</span>
+                <span class="badge">chunk ${c.chunk_count ?? 0}</span>
+              </div>
+              <div class="chapter-summary">${escapeHtml(c.summary || '')}</div>
+            </div>
+          `;
+        }).join('')}</div>`;
+      }
+
+      $("bookDetailWrap").innerHTML = `
+        ${meta}
+        <div style="height: 12px;"></div>
+        <div style="font-size: 13px; color: var(--muted);">章节 / 小节摘要</div>
+        ${chapterHtml}
+      `;
+    }
+
+    function openDeleteConfirm(bookId) {
+      const book = bookCache.find(b => b.id === Number(bookId));
+      pendingDeleteId = Number(bookId);
+      $("confirmText").textContent = `确认删除《${book ? book.title : ''}》？删除后不可恢复。`;
+      $("confirmErr").style.display = 'none';
+      $("confirmErr").textContent = '';
+      $("confirmModal").style.display = 'flex';
+    }
+
+    function closeDeleteConfirm() {
+      pendingDeleteId = null;
+      $("confirmModal").style.display = 'none';
+    }
+
+    async function doDeleteBook() {
+      if (!pendingDeleteId) return;
+      const btn = $("confirmDelete");
+      btn.disabled = true;
+      try {
+        await api(`/books/${pendingDeleteId}`, { method: "DELETE" });
+        closeDeleteConfirm();
+        if (selectedBookId === pendingDeleteId) {
+          selectedBookId = null;
+          renderBookDetail(null);
+        }
+        await loadBookList();
+      } catch (e) {
+        $("confirmErr").style.display = 'block';
+        $("confirmErr").textContent = e.message || String(e);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function clearSelectedBook() {
+      selectedBookId = null;
+      renderBookDetail(null);
+      applyBookFilter();
+    }
+
+    function activateTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === name);
+      });
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.id === `tab-${name}`);
+      });
+      if (name === 'library' && bookCache.length === 0) {
+        loadBookList();
+      }
+    }
+
     $("originText").textContent = safeOrigin() || "(unknown)";
     $("btnHealth").addEventListener("click", refreshHealth);
     $("btnIngest").addEventListener("click", doIngest);
@@ -664,6 +1008,34 @@
     $("btnIngestClear").addEventListener("click", clearIngest);
     $("btnSearchClear").addEventListener("click", clearSearch);
     $("btnAskClear").addEventListener("click", clearAsk);
+    $("btnLibRefresh").addEventListener("click", loadBookList);
+    $("btnLibClear").addEventListener("click", clearSelectedBook);
+    $("lib_filter").addEventListener("input", applyBookFilter);
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+    });
+
+    $("bookTableWrap").addEventListener('click', (e) => {
+      const actionEl = e.target.closest('[data-action]');
+      const row = e.target.closest('tr[data-book-id]');
+      if (!row) return;
+      const bookId = Number(row.dataset.bookId);
+      if (actionEl) {
+        const action = actionEl.dataset.action;
+        if (action === 'detail') selectBook(bookId);
+        if (action === 'delete') openDeleteConfirm(bookId);
+        return;
+      }
+      selectBook(bookId);
+    });
+
+    $("confirmCancel").addEventListener('click', closeDeleteConfirm);
+    $("confirmDelete").addEventListener('click', doDeleteBook);
+    $("confirmModal").addEventListener('click', (e) => {
+      if (e.target === $("confirmModal")) closeDeleteConfirm();
+    });
+
     $("ask_q").addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") doAsk();
     });
