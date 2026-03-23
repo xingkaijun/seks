@@ -5,19 +5,17 @@ from fastapi.staticfiles import StaticFiles
 from ask import ask_documents
 from db import test_connection
 from ingest import ingest_document
-from library import delete_book, get_book_detail, list_books
 from schemas import (
     AskRequest,
     AskResponse,
-    BookDetailResponse,
-    BookListResponse,
-    DeleteResponse,
     HealthResponse,
     IngestRequest,
     IngestResponse,
+    ScopeOptionsResponse,
     SearchRequest,
     SearchResponse,
 )
+from scope import list_scope_options
 from search import search_documents
 
 app = FastAPI(title="SEKS API", version="0.2.0")
@@ -66,29 +64,9 @@ async def ask(payload: AskRequest) -> AskResponse:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/books", response_model=BookListResponse)
-async def books() -> BookListResponse:
+@app.get("/scope/options", response_model=ScopeOptionsResponse)
+async def scope_options() -> ScopeOptionsResponse:
     try:
-        return list_books()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/books/{book_id}", response_model=BookDetailResponse)
-async def book_detail(book_id: int) -> BookDetailResponse:
-    try:
-        return get_book_detail(book_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.delete("/books/{book_id}", response_model=DeleteResponse)
-async def book_delete(book_id: int) -> DeleteResponse:
-    try:
-        return delete_book(book_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        return list_scope_options()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

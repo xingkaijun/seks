@@ -11,6 +11,44 @@ def _build_filters(payload: SearchRequest) -> tuple[str, list]:
     if not filters:
         return "", params
 
+    scope_clauses: list[str] = []
+    if filters.file_paths:
+        files = [p.strip() for p in filters.file_paths if p and p.strip()]
+        if files:
+            scope_clauses.append("b.file_path = ANY(%s)")
+            params.append(files)
+    if filters.folder_paths:
+        folders = []
+        for raw in filters.folder_paths:
+            if not raw or not raw.strip():
+                continue
+            cleaned = raw.strip()
+            if cleaned == "/":
+                folders.append("/")
+            elif cleaned == ".":
+                folders.append(".")
+            else:
+                folders.append(cleaned.rstrip("/"))
+        patterns = []
+        dot_only = False
+        for folder in folders:
+            if not folder:
+                continue
+            if folder == ".":
+                dot_only = True
+            elif folder == "/":
+                patterns.append("/%")
+            else:
+                patterns.append(f"{folder}/%")
+        if patterns:
+            scope_clauses.append("b.file_path LIKE ANY(%s)")
+            params.append(patterns)
+        if dot_only:
+            scope_clauses.append("b.file_path NOT LIKE %s")
+            params.append("%/%")
+    if scope_clauses:
+        clauses.append("(" + " OR ".join(scope_clauses) + ")")
+
     if filters.title:
         clauses.append("b.title ILIKE %s")
         params.append(f"%{filters.title}%")
