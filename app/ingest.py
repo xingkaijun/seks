@@ -1,4 +1,5 @@
 import hashlib
+import re
 from pathlib import Path
 
 from pypdf import PdfReader
@@ -10,6 +11,10 @@ from schemas import IngestRequest, IngestResponse
 
 CHUNK_SIZE = 1000
 OVERLAP = 120
+KEYWORD_LIMIT = 24
+
+_KEYWORD_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9\\-_/]{1,}|[\\u4e00-\\u9fff]{2,}")
+_KEYWORD_STOPWORDS = {"what", "which", "with", "for", "the", "and", "are", "有哪些", "什么"}
 
 
 def _file_hash(file_path: Path) -> str:
@@ -48,6 +53,25 @@ def _split_text(text: str) -> list[str]:
             break
         start = max(0, end - OVERLAP)
     return [c for c in chunks if c]
+
+
+def _extract_keywords(text: str, *, limit: int = KEYWORD_LIMIT) -> list[str]:
+    keywords: list[str] = []
+    seen: set[str] = set()
+    for match in _KEYWORD_RE.finditer(text):
+        token = match.group(0).strip()
+        if not token:
+            continue
+        lowered = token.lower()
+        if lowered in _KEYWORD_STOPWORDS:
+            continue
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        keywords.append(lowered)
+        if len(keywords) >= limit:
+            break
+    return keywords
 
 
 async def ingest_document(payload: IngestRequest) -> IngestResponse:
@@ -122,6 +146,7 @@ async def ingest_document(payload: IngestRequest) -> IngestResponse:
 
     for idx, chunk in enumerate(chunks):
         embedding = get_embedding_for_chunk(chunk)
+        keywords = _extract_keywords(chunk)
         execute(
             insert_sql,
             (
@@ -133,7 +158,7 @@ async def ingest_document(payload: IngestRequest) -> IngestResponse:
                 idx,
                 chunk,
                 max(1, len(chunk) // 4),
-                [],
+                keywords,
                 vector_literal(embedding),
             ),
         )

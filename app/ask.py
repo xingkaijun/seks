@@ -1,122 +1,33 @@
+import os
 import re
 
 from llm import generate_rag_answer, llm_settings
+from query_utils import apply_light_rerank, expand_question_queries, is_noisy_chunk, keyword_terms, question_type
+from retrieval import hybrid_retrieve
 from schemas import AskRequest, AskResponse, Citation, SearchRequest
-from search import search_documents
 
 
-_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
-_NUMERIC_NOISE_RE = re.compile(r"^[\d\s.,;:()\[\]/+\-–—%*xX=<>#°]+$")
+_TRUE_VALUES = {"1", "true", "yes", "on"}
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[。！？.!?])\s+|\n+")
 
 
-def _question_type(question: str) -> str:
-    q = question.lower()
-    if any(k in question for k in ["多少种", "清单", "列表", "有哪些", "哪几种"]):
-        return "list"
-    if any(k in question for k in ["容量", "电压", "功率", "压力", "温度", "数量", "参数", "范围", "多大", "几台", "多少台", "额定输出"]):
-        return "param"
-    if any(k in q for k in ["capacity", "rated output", "quantity", "how many", "kw", "kwe", "generator size"]):
-        return "param"
-    if "试航" in question or "试验" in question or "测试" in question:
-        return "trial"
-    if "transformer" in q or "变压器" in question:
-        return "list"
-    return "general"
+def _bool_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    return str(raw).strip().lower() in _TRUE_VALUES
 
 
-def _expand_question_queries(question: str) -> list[str]:
-    queries: list[str] = [question.strip()]
-    q = question.lower()
-
-    expansions: list[str] = []
-    if "试航" in question:
-        expansions.extend([
-            "sea trial",
-            "sea trial test items",
-            "sea trial procedure",
-            "trial items during sea trial",
-        ])
-    if "试验" in question or "测试" in question:
-        expansions.extend(["test items", "tests", "trial items"])
-    if "要求" in question:
-        expansions.extend(["requirements", "procedure", "approval"])
-    if "焊接" in question or "焊" in question:
-        expansions.extend(["welding spec", "WPS"])
-    if "coating" in q or "涂层" in question or "油漆" in question:
-        expansions.extend(["coating system", "paint specification"])
-    if "变压器" in question or "transformer" in q:
-        expansions.extend([
-            "transformer",
-            "transformer capacity",
-            "high voltage transformers",
-            "low voltage transformers",
-        ])
-    if any(k in question for k in ["发电机", "应急发电机", "轴带发电机", "双燃料发电机", "辅助发电机"]) or "generator" in q:
-        expansions.extend([
-            "generator quantity rated output",
-            "generator capacity kW",
-            "generator particulars",
-            "rated output quantity",
-            "emergency generator",
-            "shaft generator",
-            "dual fuel generator",
-        ])
-    if any(k in question for k in ["几台", "多少台", "多大", "容量", "功率", "额定输出", "数量"]) or any(k in q for k in ["capacity", "rated output", "quantity", "how many", "kw", "kwe"]):
-        expansions.extend([
-            "quantity rated output",
-            "capacity quantity kW",
-            "particulars rated output",
-            "no. of set rated output",
-        ])
-    if "流量计" in question or "flow meter" in q:
-        expansions.extend(["flow meter", "mass type flow meter", "coriolis", "rotameter"])
-
-    for item in expansions:
-        item = item.strip()
-        if item and item not in queries:
-            queries.append(item)
-    return queries[:8]
+def _default_ask_rerank() -> bool:
+    if os.getenv("ASK_RERANK_ENABLED") is None:
+        return _bool_env("RETRIEVAL_RERANK_ENABLED", True)
+    return _bool_env("ASK_RERANK_ENABLED", True)
 
 
-def _keyword_terms(question: str) -> set[str]:
-    keywords: set[str] = set()
-    for query in _expand_question_queries(question):
-        lowered = query.lower()
-        for token in re.findall(r"[a-zA-Z]{3,}|\d+|[\u4e00-\u9fff]{2,}", lowered):
-            if token not in {"what", "which", "with", "for", "the", "and", "are", "有哪些", "什么"}:
-                keywords.add(token)
-    return keywords
-
-
-def _is_noisy_chunk(text: str) -> bool:
-    raw = text.strip()
-    if not raw:
-        return True
-    if len(raw) < 30:
-        return True
-
-    lines = [line.strip() for line in raw.splitlines() if line.strip()]
-    if not lines:
-        return True
-
-    numeric_like = 0
-    alpha_cjk_chars = 0
-    digit_chars = 0
-    for line in lines:
-        compact = line.replace(" ", "")
-        if _NUMERIC_NOISE_RE.match(compact):
-            numeric_like += 1
-        alpha_cjk_chars += sum(1 for ch in line if ch.isalpha() or _CJK_RE.match(ch))
-        digit_chars += sum(1 for ch in line if ch.isdigit())
-
-    if numeric_like / max(len(lines), 1) >= 0.6:
-        return True
-    if alpha_cjk_chars == 0:
-        return True
-    if digit_chars > alpha_cjk_chars * 1.2:
-        return True
-    return False
+def _resolve_rerank(payload_flag: bool | None) -> bool:
+    if payload_flag is None:
+        return _default_ask_rerank()
+    return bool(payload_flag)
 
 
 def _extract_relevant_excerpt(text: str, keywords: set[str]) -> str:
@@ -134,42 +45,13 @@ def _extract_relevant_excerpt(text: str, keywords: set[str]) -> str:
                 score += 2
         if any(term in lowered for term in ["trial", "test", "procedure", "approval", "transformer", "capacity", "quantity"]):
             score += 2
-        if _is_noisy_chunk(part):
+        if is_noisy_chunk(part):
             score -= 3
         scored.append((score, part))
 
     scored.sort(key=lambda x: (x[0], len(x[1])), reverse=True)
     best = scored[0][1]
     return best[:260] + ("…" if len(best) > 260 else "")
-
-
-def _rank_hits(question: str, hits):
-    keywords = _keyword_terms(question)
-    qtype = _question_type(question)
-    ranked = []
-    for hit in hits:
-        text = hit.chunk_text or ""
-        lowered = text.lower()
-        score = float(hit.score or 0.0)
-        if _is_noisy_chunk(text) and qtype not in {"param", "list"}:
-            score -= 1.5
-        for kw in keywords:
-            if kw in lowered or kw in text:
-                score += 0.35
-        if qtype == "trial" and any(term in lowered for term in ["sea trial", "trial", "test", "procedure", "approved", "approval"]):
-            score += 0.7
-        if qtype in {"list", "param"} and any(term in lowered for term in ["transformer", "capacity", "quantity", "application", "voltage"]):
-            score += 0.7
-        if qtype == "param" and any(term in lowered for term in ["rated output", "quantity", "no. of set", "capacity", "kw", "kwe", "particulars"]):
-            score += 1.2
-        if qtype == "param" and any(term in lowered for term in ["contents", "table of contents", "................................................................"]):
-            score -= 1.0
-        if qtype == "param" and "generator" in lowered:
-            score += 0.6
-        ranked.append((score, hit))
-
-    ranked.sort(key=lambda x: x[0], reverse=True)
-    return [hit for _, hit in ranked]
 
 
 def _dedupe_hits(hits):
@@ -279,8 +161,8 @@ def _extract_transformer_table(hits) -> list[dict]:
 
 
 def _structured_summary(question: str, hits) -> str | None:
-    qtype = _question_type(question)
-    useful_hits = [hit for hit in hits if not _is_noisy_chunk(hit.chunk_text)] or hits[:5]
+    qtype = question_type(question)
+    useful_hits = [hit for hit in hits if not is_noisy_chunk(hit.chunk_text)] or hits[:5]
 
     if qtype == "trial":
         items = _extract_trial_items(useful_hits)
@@ -309,8 +191,8 @@ def _fallback_summary(question: str, hits) -> str:
     if not hits:
         return "当前知识库里没有检索到足够证据，暂时不能可靠回答这个问题。"
 
-    keywords = _keyword_terms(question)
-    useful_hits = [hit for hit in hits if not _is_noisy_chunk(hit.chunk_text)]
+    keywords = keyword_terms(question)
+    useful_hits = [hit for hit in hits if not is_noisy_chunk(hit.chunk_text)]
     if not useful_hits:
         useful_hits = hits[:3]
 
@@ -346,11 +228,33 @@ def _build_contexts(hits):
 
 async def ask_documents(payload: AskRequest) -> AskResponse:
     merged_hits = []
-    for query in _expand_question_queries(payload.question):
-        result = await search_documents(SearchRequest(query=query, top_k=max(payload.top_k, 8), filters=payload.filters))
-        merged_hits.extend(result.hits)
+    retrieval_debug: list[dict] = []
+    queries = expand_question_queries(payload.question)
+    candidate_k = max(payload.top_k, 8)
+    for query in queries:
+        hits, debug = hybrid_retrieve(
+            SearchRequest(query=query, top_k=candidate_k, filters=payload.filters),
+            rerank=False,
+        )
+        merged_hits.extend(hits)
+        retrieval_debug.append(
+            {
+                "query": debug.get("query", query),
+                "signals": debug.get("signals"),
+                "merged_candidates": debug.get("merged_candidates"),
+                "hits_returned": debug.get("hits_returned"),
+                "keyword_terms": debug.get("keyword_terms"),
+                "timing_ms": debug.get("timing_ms"),
+            }
+        )
 
-    ranked_hits = _rank_hits(payload.question, _dedupe_hits(merged_hits))
+    deduped_hits = _dedupe_hits(merged_hits)
+    ask_rerank_enabled = _resolve_rerank(payload.rerank)
+    rerank_debug: list[dict] = []
+    if ask_rerank_enabled:
+        ranked_hits, rerank_debug = apply_light_rerank(payload.question, deduped_hits, return_debug=True)
+    else:
+        ranked_hits = deduped_hits
     top_hits = ranked_hits[: payload.top_k]
 
     citations = [
@@ -368,9 +272,18 @@ async def ask_documents(payload: AskRequest) -> AskResponse:
     mode = "retrieval_only"
     debug: dict = {
         "retrieved_hits": len(top_hits),
-        "queries": _expand_question_queries(payload.question),
-        "question_type": _question_type(payload.question),
+        "queries": queries,
+        "question_type": question_type(payload.question),
+        "rerank_enabled": ask_rerank_enabled,
+        "retrieval": {
+            "per_query": retrieval_debug,
+            "merged_candidates": len(merged_hits),
+            "deduped_candidates": len(deduped_hits),
+            "top_k": payload.top_k,
+        },
     }
+    if rerank_debug:
+        debug["rerank_top"] = rerank_debug[: min(5, len(rerank_debug))]
 
     llm_overrides = {
         "enabled": payload.llm_enabled,

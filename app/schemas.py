@@ -53,12 +53,14 @@ class SearchRequest(BaseModel):
     query: str
     top_k: int = 10
     filters: SearchFilters | None = None
+    rerank: bool | None = None
 
 
 class AskRequest(BaseModel):
     question: str
     top_k: int = 8
     filters: SearchFilters | None = None
+    rerank: bool | None = None
     llm_enabled: bool | None = None
     llm_model: str | None = None
     llm_temperature: float | None = None
@@ -85,6 +87,7 @@ class SearchHit(BaseModel):
 class SearchResponse(BaseModel):
     query: str
     hits: list[SearchHit]
+    debug: dict[str, Any] | None = None
 
 
 class AskResponse(BaseModel):
