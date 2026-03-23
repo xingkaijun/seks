@@ -25,6 +25,7 @@
       background: radial-gradient(1200px 800px at 10% -10%, rgba(106,167,255,0.35), transparent 50%), var(--bg);
       color: var(--text);
     }
+    body.modal-open { overflow: hidden; }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
     .wrap { max-width: 1180px; margin: 0 auto; padding: 0 18px 36px; }
@@ -76,11 +77,10 @@
     }
     button:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    .grid-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+    .grid-top { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(360px, 1.1fr); gap: 16px; margin-top: 18px; }
     .grid-bottom { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
     @media (max-width: 980px) {
       .grid-top { grid-template-columns: 1fr; }
-      .scope-grid { grid-template-columns: 1fr; }
     }
 
     .card {
@@ -110,51 +110,46 @@
     .hint { margin-top: 6px; font-size: 12px; color: rgba(151,160,183,0.88); line-height: 1.6; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
-    .scope-summary {
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.02);
-      display: grid;
-      gap: 8px;
-    }
-    .scope-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
-    .scope-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
-      border-radius: 999px;
+    .stack-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .stack-tab {
       border: 1px solid var(--border);
-      font-size: 11px;
       background: rgba(255,255,255,0.04);
-    }
-    .scope-chip.folder { border-color: rgba(106,167,255,0.5); color: rgba(200,223,255,0.95); }
-    .scope-chip.file { border-color: rgba(65,209,154,0.4); color: rgba(200,255,230,0.95); }
-    .scope-summary-meta { font-size: 12px; color: var(--muted); }
-    .scope-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 12px; }
-    .scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
-    .scope-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-    .scope-list {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(255,255,255,0.02);
-      max-height: 240px;
-      overflow: auto;
-      padding: 6px;
-    }
-    .scope-item {
-      display: grid;
-      grid-template-columns: 20px 1fr;
-      gap: 8px;
-      padding: 8px;
-      border-radius: 10px;
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
       cursor: pointer;
     }
-    .scope-item:hover { background: rgba(255,255,255,0.04); }
-    .scope-item-title { font-size: 12px; font-weight: 600; }
-    .scope-item-sub { font-size: 11px; color: var(--muted); word-break: break-all; }
-    .scope-empty { padding: 8px; font-size: 12px; color: var(--muted); }
+    .stack-tab.is-active {
+      background: linear-gradient(180deg, rgba(106,167,255,0.95), rgba(106,167,255,0.75));
+      color: #071024;
+      border-color: rgba(106,167,255,0.6);
+    }
+    .stack-shell { position: relative; }
+    .stack-shell::before,
+    .stack-shell::after {
+      content: "";
+      position: absolute;
+      inset: 8px -8px -8px 8px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .stack-shell::after {
+      inset: 16px -16px -16px 16px;
+      opacity: 0.6;
+    }
+    .stack-cards { position: relative; display: grid; z-index: 1; }
+    .stack-card { grid-area: 1 / 1; transition: transform 0.2s ease, opacity 0.2s ease; }
+    .stack-card.is-inactive {
+      opacity: 0;
+      transform: translate(14px, 14px) scale(0.98);
+      pointer-events: none;
+      filter: saturate(0.8);
+    }
 
     .out {
       margin-top: 14px;
@@ -190,45 +185,45 @@
       word-break: break-word;
     }
 
-    .search-list { display: grid; gap: 12px; }
-    .hit-card {
+    .result-head { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .result-title { font-size: 14px; font-weight: 700; }
+    .result-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .result-list { display: grid; gap: 10px; }
+    .result-item {
+      width: 100%;
+      text-align: left;
       border: 1px solid var(--border);
       border-radius: 12px;
       background: rgba(255,255,255,0.03);
-      overflow: hidden;
-    }
-    .hit-head {
+      color: var(--text);
+      font-weight: 500;
+      padding: 12px;
       display: flex;
-      justify-content: space-between;
-      gap: 10px;
       align-items: center;
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.02);
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-    .hit-title { font-size: 13px; font-weight: 700; }
-    .hit-sub { font-size: 12px; color: var(--muted); }
-    .hit-body { padding: 12px; }
-    .hit-snippet {
-      font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.65;
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin: 0;
-      max-height: 10.5em;
-      overflow: hidden;
-    }
-    .hit-snippet.expanded { max-height: none; }
-    .hit-meta-line {
-      display: flex;
+      justify-content: space-between;
       gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-      font-size: 12px;
-      color: var(--muted);
+      transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
     }
+    .result-item:hover {
+      border-color: rgba(106,167,255,0.55);
+      background: rgba(106,167,255,0.08);
+      transform: translateY(-1px);
+    }
+    .result-item:active { transform: translateY(0); }
+    .result-item-title { font-size: 13px; font-weight: 700; }
+    .result-item-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .result-item-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+    .result-item-arrow { font-size: 16px; color: var(--accent); }
+    .result-empty {
+      padding: 12px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
     .badge {
       display: inline-flex;
       align-items: center;
@@ -236,7 +231,79 @@
       border-radius: 999px;
       padding: 2px 8px;
       background: rgba(255,255,255,0.04);
+      font-size: 12px;
     }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+    }
+    .modal.show { display: flex; }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(8,12,24,0.72);
+      backdrop-filter: blur(6px);
+    }
+    .modal-panel {
+      position: relative;
+      width: min(1040px, 94vw);
+      height: min(80vh, 820px);
+      background: rgba(14,20,38,0.98);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      z-index: 1;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+    }
+    .modal-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .modal-body { padding: 16px 18px; overflow: auto; }
+
+    .markdown h1, .markdown h2, .markdown h3 { margin: 14px 0 8px; }
+    .markdown h1 { font-size: 20px; }
+    .markdown h2 { font-size: 17px; }
+    .markdown h3 { font-size: 15px; }
+    .markdown p { margin: 0 0 12px; line-height: 1.75; }
+    .markdown code {
+      font-family: var(--mono);
+      background: rgba(255,255,255,0.08);
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .markdown pre {
+      background: rgba(6,10,22,0.7);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 12px;
+      overflow: auto;
+    }
+    .markdown pre code { background: transparent; padding: 0; }
+    .markdown ul, .markdown ol { padding-left: 20px; margin: 0 0 12px; }
+    .markdown li { margin-bottom: 6px; line-height: 1.7; }
+    .markdown blockquote {
+      margin: 0 0 12px;
+      padding-left: 12px;
+      border-left: 3px solid rgba(106,167,255,0.5);
+      color: rgba(233,236,245,0.92);
+    }
+    .markdown hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 
     .tips ul {
       margin: 0;
@@ -273,165 +340,146 @@
   </header>
 
   <main class="wrap">
-    <section class="card" style="margin-top: 18px;">
-      <h2>检索范围（Ask/Search 共用）</h2>
-      <div class="body">
-        <p class="section-desc">支持按文件夹或单文件划定检索范围。未选择任何范围时默认全库检索，可混合多选。</p>
-
-        <div id="scopeSummary" class="scope-summary"></div>
-
-        <div class="scope-toolbar">
-          <button class="secondary" id="btnScopeRefresh">刷新范围</button>
-          <button class="secondary" id="btnScopeClear">清空范围</button>
-        </div>
-
-        <div class="row full">
-          <label>过滤关键字</label>
-          <input id="scopeFilter" type="text" placeholder="筛选文件夹或文件（标题/路径均可）" />
-        </div>
-
-        <div class="scope-grid">
-          <div>
-            <div class="scope-title">按文件夹</div>
-            <div id="scopeFolderList" class="scope-list"></div>
-          </div>
-          <div>
-            <div class="scope-title">按文件</div>
-            <div id="scopeFileList" class="scope-list"></div>
-          </div>
-        </div>
-
-        <div class="hint">提示：文件夹按路径前缀匹配，文件为精确匹配。</div>
-      </div>
-    </section>
-
     <div class="grid-top">
-      <section class="card">
-        <h2>问答（Ask）</h2>
-        <div class="body">
-          <p class="section-desc">适合直接提问题。系统会先检索相关片段，再给出整理后的答案；如果配置了 LLM，会尽量生成更自然的最终回答。</p>
+      <div class="stacker">
+        <div class="stack-tabs">
+          <button class="stack-tab is-active" data-panel="ask" type="button">Ask</button>
+          <button class="stack-tab" data-panel="search" type="button">Search</button>
+        </div>
+        <div class="stack-shell">
+          <div class="stack-cards">
+            <section class="card stack-card" id="askCard" data-panel="ask">
+              <h2>问答（Ask）</h2>
+              <div class="body">
+                <p class="section-desc">适合直接提问题。系统会先检索相关片段，再给出整理后的答案；如果配置了 LLM，会尽量生成更自然的最终回答。</p>
 
-          <div class="row full">
-            <label>问题</label>
-            <div>
-              <textarea id="ask_q" placeholder="例如：Hull welding spec 用哪个 WPS？"></textarea>
-              <div class="hint">快捷键：Ctrl / ⌘ + Enter 可直接提交。</div>
-            </div>
-          </div>
-          <div class="row">
-            <label>返回条数 top_k</label>
-            <input id="ask_topk" type="number" placeholder="8" value="8" />
-          </div>
-          <div class="row">
-            <label>按书名过滤</label>
-            <input id="ask_ft_title" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>按章节过滤</label>
-            <input id="ask_ft_chapter" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>起始页码</label>
-            <input id="ask_ft_ps" type="number" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>结束页码</label>
-            <input id="ask_ft_pe" type="number" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>领域标签</label>
-            <input id="ask_ft_tag" type="text" placeholder="可选，例如 welding" />
-          </div>
+                <div class="row full">
+                  <label>问题</label>
+                  <div>
+                    <textarea id="ask_q" placeholder="例如：Hull welding spec 用哪个 WPS？"></textarea>
+                    <div class="hint">快捷键：Ctrl / ⌘ + Enter 可直接提交。</div>
+                  </div>
+                </div>
+                <div class="row">
+                  <label>返回条数 top_k</label>
+                  <input id="ask_topk" type="number" placeholder="8" value="8" />
+                </div>
+                <div class="row">
+                  <label>按书名过滤</label>
+                  <input id="ask_ft_title" type="text" placeholder="可选" />
+                </div>
+                <div class="row">
+                  <label>按章节过滤</label>
+                  <input id="ask_ft_chapter" type="text" placeholder="可选" />
+                </div>
+                <div class="row">
+                  <label>起始页码</label>
+                  <input id="ask_ft_ps" type="number" placeholder="可选" />
+                </div>
+                <div class="row">
+                  <label>结束页码</label>
+                  <input id="ask_ft_pe" type="number" placeholder="可选" />
+                </div>
+                <div class="row">
+                  <label>领域标签</label>
+                  <input id="ask_ft_tag" type="text" placeholder="可选，例如 welding" />
+                </div>
 
-          <details style="margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02);">
-            <summary style="cursor:pointer; padding: 12px 14px; color: var(--muted); font-size: 13px;">LLM 高级设置（可选）</summary>
-            <div style="padding: 0 14px 14px;">
-              <div class="hint">这里可以临时控制本次 Ask 是否启用 LLM、使用哪个模型、温度多少。API 地址和 Key 仍然走服务端配置，不在页面暴露。</div>
-              <div class="row">
-                <label>启用 LLM</label>
-                <input id="ask_llm_enabled" type="text" placeholder="留空=跟随服务端；可填 true / false" />
+                <details style="margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02);">
+                  <summary style="cursor:pointer; padding: 12px 14px; color: var(--muted); font-size: 13px;">LLM 高级设置（可选）</summary>
+                  <div style="padding: 0 14px 14px;">
+                    <div class="hint">这里可以临时控制本次 Ask 是否启用 LLM、使用哪个模型、温度多少。API 地址和 Key 仍然走服务端配置，不在页面暴露。</div>
+                    <div class="row">
+                      <label>启用 LLM</label>
+                      <input id="ask_llm_enabled" type="text" placeholder="留空=跟随服务端；可填 true / false" />
+                    </div>
+                    <div class="row">
+                      <label>模型名</label>
+                      <input id="ask_llm_model" type="text" placeholder="留空=跟随服务端，例如 gpt-5.2" />
+                    </div>
+                    <div class="row">
+                      <label>温度</label>
+                      <input id="ask_llm_temp" type="number" step="0.1" placeholder="留空=跟随服务端，例如 0.2" />
+                    </div>
+                  </div>
+                </details>
+
+                <div class="actions">
+                  <button id="btnAsk" type="button">提交问答</button>
+                  <button class="secondary" id="btnAskClear" type="button">清空</button>
+                </div>
+                <div class="hint">结果展示在右侧“结果区”。</div>
               </div>
-              <div class="row">
-                <label>模型名</label>
-                <input id="ask_llm_model" type="text" placeholder="留空=跟随服务端，例如 gpt-5.2" />
-              </div>
-              <div class="row">
-                <label>温度</label>
-                <input id="ask_llm_temp" type="number" step="0.1" placeholder="留空=跟随服务端，例如 0.2" />
-              </div>
-            </div>
-          </details>
+            </section>
 
-          <div class="actions">
-            <button id="btnAsk">提交问答</button>
-            <button class="secondary" id="btnAskClear">清空</button>
-          </div>
+            <section class="card stack-card is-inactive" id="searchCard" data-panel="search">
+              <h2>检索（Search）</h2>
+              <div class="body">
+                <p class="section-desc">适合先看原文证据。检索结果会直接展示命中的片段，便于你判断资料有没有入对、搜对。</p>
 
-          <div class="out" id="askOut" style="display:none;">
-            <div class="meta"><span id="askMeta"></span><span id="askTime"></span></div>
-            <div class="err" id="askErr" style="display:none;"></div>
-            <div style="padding: 12px;">
-              <div style="font-size:12px; color: var(--muted);">回答</div>
-              <pre id="askAnswer" style="font-size: 13px;"></pre>
-              <div style="height: 10px;"></div>
-              <div style="font-size:12px; color: var(--muted);">引用来源</div>
-              <div id="askCitations"></div>
-            </div>
-            <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
-              <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
-              <pre id="askPre"></pre>
-            </details>
+                <div class="row full">
+                  <label>检索词</label>
+                  <input id="sea_query" type="text" placeholder="例如：WPS-001 / sea trial / transformer capacity" />
+                </div>
+                <div class="row">
+                  <label>返回条数 top_k</label>
+                  <input id="sea_topk" type="number" placeholder="10" value="10" />
+                </div>
+                <div class="row">
+                  <label>按书名过滤</label>
+                  <input id="sea_ft_title" type="text" placeholder="可选" />
+                </div>
+                <div class="row">
+                  <label>按章节过滤</label>
+                  <input id="sea_ft_chapter" type="text" placeholder="可选" />
+                </div>
+                <div class="row">
+                  <label>起始页码</label>
+                  <input id="sea_ft_ps" type="number" placeholder="可选" />
+                </div>
+                <div class="row">
+                  <label>结束页码</label>
+                  <input id="sea_ft_pe" type="number" placeholder="可选" />
+                </div>
+                <div class="row">
+                  <label>领域标签</label>
+                  <input id="sea_ft_tag" type="text" placeholder="可选，例如 spec" />
+                </div>
+
+                <div class="actions">
+                  <button id="btnSearch" type="button">执行检索</button>
+                  <button class="secondary" id="btnSearchClear" type="button">清空</button>
+                </div>
+                <div class="hint">建议先用 Search 看原文，再决定是否用 Ask 让系统整理答案。结果展示在右侧“结果区”。</div>
+              </div>
+            </section>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section class="card">
-        <h2>检索（Search）</h2>
+      <section class="card" id="resultCard">
+        <h2>结果区</h2>
         <div class="body">
-          <p class="section-desc">适合先看原文证据。检索结果会直接展示命中的片段，便于你判断资料有没有入对、搜对。</p>
-
-          <div class="row full">
-            <label>检索词</label>
-            <input id="sea_query" type="text" placeholder="例如：WPS-001 / sea trial / transformer capacity" />
-          </div>
-          <div class="row">
-            <label>返回条数 top_k</label>
-            <input id="sea_topk" type="number" placeholder="10" value="10" />
-          </div>
-          <div class="row">
-            <label>按书名过滤</label>
-            <input id="sea_ft_title" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>按章节过滤</label>
-            <input id="sea_ft_chapter" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>起始页码</label>
-            <input id="sea_ft_ps" type="number" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>结束页码</label>
-            <input id="sea_ft_pe" type="number" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>领域标签</label>
-            <input id="sea_ft_tag" type="text" placeholder="可选，例如 spec" />
+          <div class="result-head">
+            <div>
+              <div class="result-title" id="resultTitle">尚无结果</div>
+              <div class="result-sub" id="resultSub">先在左侧提交 Ask 或 Search。</div>
+            </div>
+            <div class="result-actions">
+              <button class="secondary" id="btnResultClear" type="button">清空</button>
+            </div>
           </div>
 
-          <div class="actions">
-            <button id="btnSearch">执行检索</button>
-            <button class="secondary" id="btnSearchClear">清空</button>
-          </div>
-          <div class="hint">建议先用 Search 看原文，再决定是否用 Ask 让系统整理答案。</div>
-
-          <div class="out" id="searchOut" style="display:none;">
-            <div class="meta"><span id="searchMeta"></span><span id="searchTime"></span></div>
-            <div class="err" id="searchErr" style="display:none;"></div>
-            <div id="searchTableWrap"></div>
+          <div class="out" id="resultOut" style="display:none;">
+            <div class="meta"><span id="resultMeta"></span><span id="resultTime"></span></div>
+            <div class="err" id="resultErr" style="display:none;"></div>
+            <div style="padding: 12px;">
+              <div id="resultList" class="result-list"></div>
+              <div id="resultEmpty" class="result-empty" style="display:none;"></div>
+            </div>
             <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
               <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
-              <pre id="searchPre"></pre>
+              <pre id="resultPre"></pre>
             </details>
           </div>
         </div>
@@ -473,8 +521,8 @@
           </div>
 
           <div class="actions">
-            <button id="btnIngest">执行入库</button>
-            <button class="secondary" id="btnIngestClear">清空</button>
+            <button id="btnIngest" type="button">执行入库</button>
+            <button class="secondary" id="btnIngestClear" type="button">清空</button>
           </div>
 
           <div class="out" id="ingestOut" style="display:none;">
@@ -502,6 +550,23 @@
       </section>
     </div>
   </main>
+
+  <div class="modal" id="detailModal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-panel" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="modalTitle">详情</div>
+          <div class="modal-sub" id="modalSub"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary" id="btnCopy" type="button">复制</button>
+          <button id="btnClose" type="button">关闭</button>
+        </div>
+      </div>
+      <div class="modal-body markdown" id="modalBody"></div>
+    </div>
+  </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
@@ -559,225 +624,6 @@
       }
     }
 
-    const scopeState = {
-      folders: new Set(),
-      files: new Set(),
-    };
-    let scopeOptions = { folders: [], files: [] };
-    let scopeFolderCounts = new Map();
-    let scopeFileMeta = new Map();
-    let scopeLoading = false;
-    let scopeError = "";
-
-    function escapeHtml(text) {
-      return String(text || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function shortPath(path, limit = 42) {
-      const raw = String(path || "");
-      if (raw.length <= limit) return raw;
-      const head = raw.slice(0, Math.max(10, Math.floor(limit * 0.55)));
-      const tail = raw.slice(-Math.max(8, Math.floor(limit * 0.35)));
-      return `${head}…${tail}`;
-    }
-
-    function folderFromPath(path) {
-      const cleaned = String(path || "").trim().replace(/\/+$/, "");
-      if (!cleaned) return "";
-      const idx = cleaned.lastIndexOf("/");
-      if (idx === -1) return ".";
-      if (idx === 0) return "/";
-      return cleaned.slice(0, idx);
-    }
-
-    function fileLabel(path) {
-      const meta = scopeFileMeta.get(path);
-      if (meta && meta.title) return meta.title;
-      const cleaned = String(path || "");
-      const idx = cleaned.lastIndexOf("/");
-      return idx >= 0 ? cleaned.slice(idx + 1) : cleaned;
-    }
-
-    function getScopeFilters() {
-      const folders = Array.from(scopeState.folders);
-      const files = Array.from(scopeState.files);
-      const filters = {};
-      if (folders.length) filters.folder_paths = folders;
-      if (files.length) filters.file_paths = files;
-      return Object.keys(filters).length ? filters : null;
-    }
-
-    function renderScopeSummary() {
-      const wrap = $("scopeSummary");
-      if (!wrap) return;
-
-      if (scopeLoading) {
-        wrap.innerHTML = `<div class="scope-summary-meta">范围加载中…</div>`;
-        return;
-      }
-      if (scopeError) {
-        wrap.innerHTML = `<div class="scope-summary-meta">范围加载失败：${escapeHtml(scopeError)}</div>`;
-        return;
-      }
-
-      const folders = Array.from(scopeState.folders);
-      const files = Array.from(scopeState.files);
-      const meta = `已载入 ${scopeOptions.folders.length} 个文件夹 · ${scopeOptions.files.length} 个文件`;
-
-      if (!folders.length && !files.length) {
-        wrap.innerHTML = `<div>当前范围：全库</div><div class="scope-summary-meta">${meta}</div>`;
-        return;
-      }
-
-      const chips = [];
-      const makeChips = (items, type, labelFn) => {
-        const limit = 6;
-        items.slice(0, limit).forEach((item) => {
-          const label = labelFn(item);
-          chips.push(
-            `<span class="scope-chip ${type}" title="${escapeHtml(item)}">${type === "folder" ? "文件夹" : "文件"}：${escapeHtml(shortPath(label))}</span>`
-          );
-        });
-        if (items.length > limit) {
-          chips.push(`<span class="scope-chip ${type}">+${items.length - limit}</span>`);
-        }
-      };
-
-      makeChips(folders, "folder", (v) => v);
-      makeChips(files, "file", (v) => fileLabel(v));
-
-      wrap.innerHTML = `
-        <div class="scope-chip-row">${chips.join("")}</div>
-        <div class="scope-summary-meta">${meta} · 已选 ${folders.length} 个文件夹、${files.length} 个文件</div>
-      `;
-    }
-
-    function renderScopeLists() {
-      const folderWrap = $("scopeFolderList");
-      const fileWrap = $("scopeFileList");
-      const keyword = ($("scopeFilter")?.value || "").trim().toLowerCase();
-      if (!folderWrap || !fileWrap) return;
-
-      const folders = scopeOptions.folders.filter((path) => path.toLowerCase().includes(keyword));
-      const files = scopeOptions.files.filter((item) => {
-        const title = (item.title || "").toLowerCase();
-        const path = (item.file_path || "").toLowerCase();
-        return title.includes(keyword) || path.includes(keyword);
-      });
-
-      if (!folders.length) {
-        folderWrap.innerHTML = `<div class="scope-empty">暂无可选文件夹</div>`;
-      } else {
-        folderWrap.innerHTML = folders
-          .map((path) => {
-            const count = scopeFolderCounts.get(path) || 0;
-            return `
-              <label class="scope-item">
-                <input type="checkbox" data-scope="folder" value="${escapeHtml(path)}" ${scopeState.folders.has(path) ? "checked" : ""} />
-                <div>
-                  <div class="scope-item-title">${escapeHtml(shortPath(path))}</div>
-                  <div class="scope-item-sub">包含 ${count} 个文件 · ${escapeHtml(path)}</div>
-                </div>
-              </label>
-            `;
-          })
-          .join("");
-      }
-
-      if (!files.length) {
-        fileWrap.innerHTML = `<div class="scope-empty">暂无可选文件</div>`;
-      } else {
-        fileWrap.innerHTML = files
-          .map((item) => {
-            const label = item.title || fileLabel(item.file_path);
-            return `
-              <label class="scope-item">
-                <input type="checkbox" data-scope="file" value="${escapeHtml(item.file_path)}" ${scopeState.files.has(item.file_path) ? "checked" : ""} />
-                <div>
-                  <div class="scope-item-title">${escapeHtml(label)}</div>
-                  <div class="scope-item-sub">${escapeHtml(shortPath(item.file_path, 64))}</div>
-                </div>
-              </label>
-            `;
-          })
-          .join("");
-      }
-
-      folderWrap.querySelectorAll('input[data-scope="folder"]').forEach((input) => {
-        input.addEventListener("change", (e) => {
-          const value = e.target.value;
-          if (e.target.checked) {
-            scopeState.folders.add(value);
-          } else {
-            scopeState.folders.delete(value);
-          }
-          renderScopeSummary();
-        });
-      });
-      fileWrap.querySelectorAll('input[data-scope="file"]').forEach((input) => {
-        input.addEventListener("change", (e) => {
-          const value = e.target.value;
-          if (e.target.checked) {
-            scopeState.files.add(value);
-          } else {
-            scopeState.files.delete(value);
-          }
-          renderScopeSummary();
-        });
-      });
-    }
-
-    async function loadScopeOptions() {
-      scopeLoading = true;
-      scopeError = "";
-      renderScopeSummary();
-      try {
-        const data = await api("/scope/options", { method: "GET" });
-        scopeOptions = {
-          folders: Array.isArray(data.folders) ? data.folders : [],
-          files: Array.isArray(data.files) ? data.files : [],
-        };
-        scopeFileMeta = new Map();
-        scopeOptions.files.forEach((file) => {
-          if (file && file.file_path) scopeFileMeta.set(file.file_path, file);
-        });
-        scopeFolderCounts = new Map();
-        scopeOptions.files.forEach((file) => {
-          if (!file || !file.file_path) return;
-          const folder = folderFromPath(file.file_path);
-          if (!folder) return;
-          scopeFolderCounts.set(folder, (scopeFolderCounts.get(folder) || 0) + 1);
-        });
-
-        const folderSet = new Set(scopeOptions.folders);
-        scopeState.folders.forEach((item) => {
-          if (!folderSet.has(item)) scopeState.folders.delete(item);
-        });
-        const fileSet = new Set(scopeOptions.files.map((f) => f.file_path));
-        scopeState.files.forEach((item) => {
-          if (!fileSet.has(item)) scopeState.files.delete(item);
-        });
-      } catch (e) {
-        scopeError = e.message || String(e);
-      } finally {
-        scopeLoading = false;
-        renderScopeLists();
-        renderScopeSummary();
-      }
-    }
-
-    function clearScope() {
-      scopeState.folders.clear();
-      scopeState.files.clear();
-      renderScopeLists();
-      renderScopeSummary();
-    }
-
     function parseFilters(prefix) {
       const title = $(`${prefix}_ft_title`).value.trim();
       const chapter = $(`${prefix}_ft_chapter`).value.trim();
@@ -790,8 +636,6 @@
       if (page_start) filters.page_start = Number(page_start);
       if (page_end) filters.page_end = Number(page_end);
       if (domain_tag) filters.domain_tag = domain_tag;
-      const scopeFilters = getScopeFilters();
-      if (scopeFilters) Object.assign(filters, scopeFilters);
       return Object.keys(filters).length ? filters : null;
     }
 
@@ -822,56 +666,295 @@
       if (pre) pre.textContent = "";
     }
 
-    function renderCitations(citations = []) {
-      const wrap = $("askCitations");
-      wrap.innerHTML = "";
-      if (!citations.length) {
-        wrap.innerHTML = '<div class="hint">暂无引用。</div>';
-        return;
-      }
-      const html = citations.map((c, idx) => {
-        const parts = [];
-        if (c.chapter) parts.push(c.chapter);
-        if (c.page_start !== null || c.page_end !== null) parts.push(`页码 ${c.page_start}-${c.page_end}`);
-        const meta = parts.length ? `（${parts.join("，")}）` : "";
-        return `<div class="hint">[${idx + 1}] 《${c.book}》${meta} · chunk_id=${c.chunk_id}</div>`;
-      }).join("");
-      wrap.innerHTML = html;
+    function formatPage(start, end) {
+      if (start === null && end === null) return "";
+      if (start === null) return `页码 ${end}`;
+      if (end === null) return `页码 ${start}`;
+      return `页码 ${start}-${end}`;
     }
 
-    function renderSearchHits(hits = []) {
-      const wrap = $("searchTableWrap");
-      if (!hits.length) {
-        wrap.innerHTML = '<div style="padding:12px; color: var(--muted); font-size: 13px;">没有命中结果。</div>';
+    function formatScore(score) {
+      if (score === null || score === undefined || Number.isNaN(score)) return "";
+      return Number(score).toFixed(4);
+    }
+
+    function buildTags(hit) {
+      const tags = [];
+      if (hit.chapter) tags.push(hit.chapter);
+      const page = formatPage(hit.page_start ?? null, hit.page_end ?? null);
+      if (page) tags.push(page);
+      if (hit.score !== null && hit.score !== undefined) tags.push(`score ${formatScore(hit.score)}`);
+      return tags;
+    }
+
+    function buildHitMarkdown(hit) {
+      const meta = [
+        `- chunk_id：${hit.chunk_id}`,
+      ];
+      if (hit.chapter) meta.push(`- 章节：${hit.chapter}`);
+      const page = formatPage(hit.page_start ?? null, hit.page_end ?? null);
+      if (page) meta.push(`- ${page}`);
+      if (hit.score !== null && hit.score !== undefined) meta.push(`- score：${formatScore(hit.score)}`);
+      const book = hit.book || '未命名书籍';
+      const body = hit.chunk_text || '（无原文片段）';
+      return `## ${book}\n\n${body}\n\n---\n${meta.join('\n')}`;
+    }
+
+    function buildAnswerMarkdown(data) {
+      const question = data.question || '（无问题）';
+      const answer = data.answer || '（无回答）';
+      const citations = data.citations || [];
+      let md = `## 问题\n${question}\n\n## 回答\n${answer}`;
+      if (citations.length) {
+        const lines = citations.map((c, idx) => {
+          const parts = [];
+          if (c.chapter) parts.push(c.chapter);
+          const page = formatPage(c.page_start ?? null, c.page_end ?? null);
+          if (page) parts.push(page);
+          const meta = parts.length ? `（${parts.join('，')}）` : '';
+          return `- [${idx + 1}] 《${c.book}》${meta} · chunk_id=${c.chunk_id}`;
+        });
+        md += `\n\n---\n### 引用来源\n${lines.join('\n')}`;
+      }
+      return md;
+    }
+
+    function buildAskItems(data) {
+      const items = [];
+      const answerMd = buildAnswerMarkdown(data);
+      items.push({
+        title: '回答',
+        sub: `mode=${data.mode || 'unknown'} · citations=${(data.citations || []).length}`,
+        tags: [],
+        markdown: answerMd,
+      });
+
+      const sources = Array.isArray(data.sources) && data.sources.length ? data.sources : [];
+      if (sources.length) {
+        sources.forEach((hit, idx) => {
+          const scoreText = formatScore(hit.score);
+          items.push({
+            title: `${idx + 1}. ${hit.book || '未命名书籍'}`,
+            sub: scoreText ? `chunk_id=${hit.chunk_id} · score=${scoreText}` : `chunk_id=${hit.chunk_id}`,
+            tags: buildTags(hit),
+            markdown: buildHitMarkdown(hit),
+          });
+        });
+      } else if (Array.isArray(data.citations) && data.citations.length) {
+        data.citations.forEach((c, idx) => {
+          const tags = [];
+          if (c.chapter) tags.push(c.chapter);
+          const page = formatPage(c.page_start ?? null, c.page_end ?? null);
+          if (page) tags.push(page);
+          const md = `## 《${c.book}》\n\n暂无原文片段，请使用 Search 查看详情。\n\n---\n- chunk_id：${c.chunk_id}${tags.length ? `\n- ${tags.join('\n- ')}` : ''}`;
+          items.push({
+            title: `${idx + 1}. ${c.book || '未命名书籍'}`,
+            sub: `chunk_id=${c.chunk_id}`,
+            tags,
+            markdown: md,
+          });
+        });
+      }
+      return items;
+    }
+
+    function buildSearchItems(data) {
+      const hits = Array.isArray(data.hits) ? data.hits : [];
+      return hits.map((hit, idx) => {
+        const scoreText = formatScore(hit.score);
+        return {
+          title: `${idx + 1}. ${hit.book || '未命名书籍'}`,
+          sub: scoreText ? `chunk_id=${hit.chunk_id} · score=${scoreText}` : `chunk_id=${hit.chunk_id}`,
+          tags: buildTags(hit),
+          markdown: buildHitMarkdown(hit),
+        };
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function buildLists(src) {
+      const lines = src.split('\n');
+      const out = [];
+      let inUl = false;
+      let inOl = false;
+      const close = () => {
+        if (inUl) { out.push('</ul>'); inUl = false; }
+        if (inOl) { out.push('</ol>'); inOl = false; }
+      };
+      for (const line of lines) {
+        const ulMatch = line.match(/^\s*[-*+]\s+(.*)/);
+        const olMatch = line.match(/^\s*\d+\.\s+(.*)/);
+        if (ulMatch) {
+          if (inOl) { out.push('</ol>'); inOl = false; }
+          if (!inUl) { out.push('<ul>'); inUl = true; }
+          out.push(`<li>${ulMatch[1]}</li>`);
+        } else if (olMatch) {
+          if (inUl) { out.push('</ul>'); inUl = false; }
+          if (!inOl) { out.push('<ol>'); inOl = true; }
+          out.push(`<li>${olMatch[1]}</li>`);
+        } else {
+          close();
+          out.push(line);
+        }
+      }
+      close();
+      return out.join('\n');
+    }
+
+    function markdownToHtml(md) {
+      if (!md) return '<div class="hint">暂无内容。</div>';
+      let src = String(md).replace(/\r\n/g, '\n');
+
+      const codeBlocks = [];
+      src = src.replace(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+        const key = `@@CODE_${codeBlocks.length}@@`;
+        codeBlocks.push({ lang: lang || '', code: code || '' });
+        return `\n${key}\n`;
+      });
+
+      src = escapeHtml(src);
+
+      src = src.replace(/^######\s+(.*)$/gm, '<h6>$1</h6>');
+      src = src.replace(/^#####\s+(.*)$/gm, '<h5>$1</h5>');
+      src = src.replace(/^####\s+(.*)$/gm, '<h4>$1</h4>');
+      src = src.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>');
+      src = src.replace(/^##\s+(.*)$/gm, '<h2>$1</h2>');
+      src = src.replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
+      src = src.replace(/^\s*---\s*$/gm, '<hr />');
+      src = src.replace(/^>\s+(.*)$/gm, '<blockquote>$1</blockquote>');
+      src = src.replace(/`([^`]+)`/g, '<code>$1</code>');
+      src = src.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      src = src.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
+      src = src.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+      src = buildLists(src);
+
+      const blocks = src.split(/\n{2,}/);
+      const htmlBlocks = blocks.map((block) => {
+        const trimmed = block.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('<h') || trimmed.startsWith('<ul>') || trimmed.startsWith('<ol>') || trimmed.startsWith('<pre>') || trimmed.startsWith('<blockquote>') || trimmed.startsWith('<hr')) {
+          return trimmed;
+        }
+        if (/^@@CODE_\d+@@$/.test(trimmed)) return trimmed;
+        return `<p>${block.replace(/\n/g, '<br />')}</p>`;
+      }).filter(Boolean);
+
+      let html = htmlBlocks.join('\n');
+      html = html.replace(/@@CODE_(\d+)@@/g, (_, idx) => {
+        const item = codeBlocks[Number(idx)];
+        const codeEsc = escapeHtml(item.code || '');
+        const langClass = item.lang ? ` class="language-${item.lang}"` : '';
+        return `<pre><code${langClass}>${codeEsc}</code></pre>`;
+      });
+      return html;
+    }
+
+    const resultState = {
+      active: 'ask',
+      data: {
+        ask: null,
+        search: null,
+      },
+    };
+
+    function renderResult(type) {
+      const data = resultState.data[type];
+      const resultTitle = $("resultTitle");
+      const resultSub = $("resultSub");
+      const resultOut = $("resultOut");
+      const resultErr = $("resultErr");
+      const resultList = $("resultList");
+      const resultEmpty = $("resultEmpty");
+
+      if (!data) {
+        resultTitle.textContent = type === 'ask' ? '问答结果' : '检索结果';
+        resultSub.textContent = type === 'ask' ? '尚无问答结果，提交问题后会在这里展示。' : '尚无检索结果，执行检索后会在这里展示。';
+        resultOut.style.display = 'none';
         return;
       }
 
-      const rows = hits.map((hit, idx) => {
-        const loc = [];
-        if (hit.chapter) loc.push(hit.chapter);
-        if (hit.page_start !== null || hit.page_end !== null) loc.push(`页码 ${hit.page_start}-${hit.page_end}`);
-        const meta = loc.map(v => `<span class="badge">${v}</span>`).join(' ');
-        const snippet = String(hit.chunk_text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return `
-          <div class="hit-card">
-            <div class="hit-head">
-              <div>
-                <div class="hit-title">${idx + 1}. ${hit.book || '未命名书籍'}</div>
-                <div class="hit-sub">chunk_id=${hit.chunk_id} · score=${hit.score ?? ''}</div>
-              </div>
-              <div class="hit-sub">${meta || ''}</div>
-            </div>
-            <div class="hit-body">
-              <div class="hit-meta-line">
-                <span class="badge">原文片段</span>
-              </div>
-              <pre class="hit-snippet">${snippet}</pre>
-            </div>
-          </div>
-        `;
-      }).join('');
+      resultTitle.textContent = data.title;
+      resultSub.textContent = data.sub || '';
+      resultOut.style.display = 'block';
+      $("resultMeta").textContent = data.meta || '';
+      $("resultTime").textContent = data.time || '';
+      $("resultPre").textContent = JSON.stringify(data.raw || {}, null, 2);
 
-      wrap.innerHTML = `<div class="search-list">${rows}</div>`;
+      if (data.err) {
+        resultErr.style.display = 'block';
+        resultErr.textContent = data.err;
+      } else {
+        resultErr.style.display = 'none';
+        resultErr.textContent = '';
+      }
+
+      if (!data.items || !data.items.length) {
+        resultList.innerHTML = '';
+        resultEmpty.textContent = data.emptyHint || '没有可展示的条目。';
+        resultEmpty.style.display = 'block';
+      } else {
+        resultEmpty.style.display = 'none';
+        resultList.innerHTML = data.items.map((item, idx) => {
+          const tags = (item.tags || []).map(tag => `<span class="badge">${tag}</span>`).join(' ');
+          return `
+            <button class="result-item" type="button" data-index="${idx}">
+              <div>
+                <div class="result-item-title">${item.title}</div>
+                <div class="result-item-sub">${item.sub || ''}</div>
+                ${tags ? `<div class="result-item-tags">${tags}</div>` : ''}
+              </div>
+              <div class="result-item-arrow">↗</div>
+            </button>
+          `;
+        }).join('');
+      }
+    }
+
+    function setResult(type, payload, data, err) {
+      const isAsk = type === 'ask';
+      const meta = err
+        ? (isAsk ? '问答失败' : '检索失败')
+        : (isAsk
+          ? `问答完成 · mode=${data?.mode || 'unknown'} · citations=${(data?.citations || []).length}`
+          : `检索完成 · hits=${(data?.hits || []).length}`);
+
+      const title = isAsk ? '问答结果' : '检索结果';
+      const sub = isAsk
+        ? `问题：${payload.question || ''}`
+        : `检索词：${payload.query || ''}`;
+
+      const items = err ? [] : (isAsk ? buildAskItems(data || {}) : buildSearchItems(data || {}));
+      resultState.data[type] = {
+        title,
+        sub,
+        meta,
+        time: nowStr(),
+        err: err ? String(err) : null,
+        items,
+        raw: err ? payload : (data || {}),
+        emptyHint: err ? '请求失败，请检查日志或网络。' : (items.length ? '' : '没有命中结果。'),
+      };
+      renderResult(type);
+    }
+
+    function switchPanel(type) {
+      resultState.active = type;
+      document.querySelectorAll('.stack-tab').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.panel === type);
+      });
+      document.querySelectorAll('.stack-card').forEach(card => {
+        const active = card.dataset.panel === type;
+        card.classList.toggle('is-inactive', !active);
+      });
+      renderResult(type);
     }
 
     async function doIngest() {
@@ -886,13 +969,13 @@
       try {
         const data = await api("/ingest", { method: "POST", body: JSON.stringify(payload) });
         showBox("ingest", `入库成功 · chunk_count=${data.chunk_count ?? '?'} · book_id=${data.book_id ?? '?'}`, data);
-        await loadScopeOptions();
       } catch (e) {
         showBox("ingest", "入库失败", payload, e.message || String(e));
       }
     }
 
     async function doSearch() {
+      switchPanel('search');
       const payload = {
         query: $("sea_query").value.trim(),
         top_k: Number($("sea_topk").value || 10),
@@ -901,15 +984,14 @@
       if (filters) payload.filters = filters;
       try {
         const data = await api("/search", { method: "POST", body: JSON.stringify(payload) });
-        showBox("search", `检索完成 · hits=${(data.hits || []).length}`, data);
-        renderSearchHits(data.hits || []);
+        setResult('search', payload, data, null);
       } catch (e) {
-        showBox("search", "检索失败", payload, e.message || String(e));
-        $("searchTableWrap").innerHTML = "";
+        setResult('search', payload, null, e.message || String(e));
       }
     }
 
     async function doAsk() {
+      switchPanel('ask');
       const payload = {
         question: $("ask_q").value.trim(),
         top_k: Number($("ask_topk").value || 8),
@@ -927,13 +1009,9 @@
 
       try {
         const data = await api("/ask", { method: "POST", body: JSON.stringify(payload) });
-        showBox("ask", `问答完成 · mode=${data.mode || 'unknown'} · citations=${(data.citations || []).length}`, data);
-        $("askAnswer").textContent = data.answer || "";
-        renderCitations(data.citations || []);
+        setResult('ask', payload, data, null);
       } catch (e) {
-        showBox("ask", "问答失败", payload, e.message || String(e));
-        $("askAnswer").textContent = "";
-        renderCitations([]);
+        setResult('ask', payload, null, e.message || String(e));
       }
     }
 
@@ -941,20 +1019,68 @@
       ["ing_file", "ing_title", "ing_author", "ing_edition", "ing_year", "ing_tags"].forEach(id => $(id).value = "");
       clearBox("ingest");
     }
-    function clearSearch() {
-      ["sea_query", "sea_topk", "sea_ft_title", "sea_ft_chapter", "sea_ft_ps", "sea_ft_pe", "sea_ft_tag"].forEach((id, i) => {
-        $(id).value = id === "sea_topk" ? "10" : "";
-      });
-      $("searchTableWrap").innerHTML = "";
-      clearBox("search");
-    }
+
     function clearAsk() {
       ["ask_q", "ask_topk", "ask_ft_title", "ask_ft_chapter", "ask_ft_ps", "ask_ft_pe", "ask_ft_tag", "ask_llm_enabled", "ask_llm_model", "ask_llm_temp"].forEach(id => {
         $(id).value = id === "ask_topk" ? "8" : "";
       });
-      $("askAnswer").textContent = "";
-      $("askCitations").innerHTML = "";
-      clearBox("ask");
+      resultState.data.ask = null;
+      if (resultState.active === 'ask') renderResult('ask');
+    }
+
+    function clearSearch() {
+      ["sea_query", "sea_topk", "sea_ft_title", "sea_ft_chapter", "sea_ft_ps", "sea_ft_pe", "sea_ft_tag"].forEach((id) => {
+        $(id).value = id === "sea_topk" ? "10" : "";
+      });
+      resultState.data.search = null;
+      if (resultState.active === 'search') renderResult('search');
+    }
+
+    function clearResultActive() {
+      resultState.data[resultState.active] = null;
+      renderResult(resultState.active);
+    }
+
+    const modal = $("detailModal");
+    const modalTitle = $("modalTitle");
+    const modalSub = $("modalSub");
+    const modalBody = $("modalBody");
+    const btnCopy = $("btnCopy");
+    let modalRaw = '';
+
+    function openModal(item) {
+      modalTitle.textContent = item.title || '详情';
+      modalSub.textContent = item.sub || '';
+      modalBody.innerHTML = markdownToHtml(item.markdown || '');
+      modalRaw = item.markdown || '';
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+    }
+
+    function closeModal() {
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+    }
+
+    async function copyModal() {
+      if (!modalRaw) return;
+      const original = btnCopy.textContent;
+      try {
+        await navigator.clipboard.writeText(modalRaw);
+        btnCopy.textContent = '已复制';
+        setTimeout(() => { btnCopy.textContent = original; }, 1200);
+      } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = modalRaw;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(ta);
+        btnCopy.textContent = '已复制';
+        setTimeout(() => { btnCopy.textContent = original; }, 1200);
+      }
     }
 
     $("originText").textContent = safeOrigin() || "(unknown)";
@@ -965,15 +1091,35 @@
     $("btnIngestClear").addEventListener("click", clearIngest);
     $("btnSearchClear").addEventListener("click", clearSearch);
     $("btnAskClear").addEventListener("click", clearAsk);
-    $("btnScopeRefresh").addEventListener("click", loadScopeOptions);
-    $("btnScopeClear").addEventListener("click", clearScope);
-    $("scopeFilter").addEventListener("input", renderScopeLists);
+    $("btnResultClear").addEventListener("click", clearResultActive);
     $("ask_q").addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") doAsk();
     });
 
+    document.querySelectorAll('.stack-tab').forEach(btn => {
+      btn.addEventListener('click', () => switchPanel(btn.dataset.panel));
+    });
+
+    $("resultList").addEventListener("click", (e) => {
+      const target = e.target.closest('.result-item');
+      if (!target) return;
+      const idx = Number(target.dataset.index);
+      const data = resultState.data[resultState.active];
+      if (!data || !data.items || !data.items[idx]) return;
+      openModal(data.items[idx]);
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target && e.target.getAttribute('data-close')) closeModal();
+    });
+    $("btnClose").addEventListener('click', closeModal);
+    $("btnCopy").addEventListener('click', copyModal);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
+    });
+
+    switchPanel('ask');
     refreshHealth();
-    loadScopeOptions();
   </script>
 </body>
 </html>
