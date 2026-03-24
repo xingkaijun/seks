@@ -38,7 +38,7 @@ services:
       CACHE_DIR: /data/cache
       LOG_DIR: /data/logs
     ports:
-      - "127.0.0.1:18080:8000"
+      - "0.0.0.0:18080:8000"
     volumes:
       - /home/kjxing/data/bookrag/library:/data/library
       - /home/kjxing/data/bookrag/extracted:/data/extracted

@@ -264,6 +264,8 @@ async def ask_documents(payload: AskRequest) -> AskResponse:
             chapter=hit.chapter,
             page_start=hit.page_start,
             page_end=hit.page_end,
+            chunk_text=hit.chunk_text,
+            score=hit.score,
         )
         for hit in top_hits[: min(len(top_hits), 8)]
     ]

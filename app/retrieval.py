@@ -61,45 +61,36 @@ def _build_filters(payload: SearchRequest) -> tuple[str, list]:
     if not filters:
         return "", params
 
-    scope_clauses: list[str] = []
-    file_paths = getattr(filters, "file_paths", None)
-    if file_paths:
-        files = [p.strip() for p in file_paths if p and p.strip()]
-        if files:
-            scope_clauses.append("b.file_path = ANY(%s)")
-            params.append(files)
-    folder_paths = getattr(filters, "folder_paths", None)
-    if folder_paths:
-        folders = []
-        for raw in folder_paths:
+    book_ids = [book_id for book_id in (filters.selected_book_ids or []) if book_id is not None]
+    if book_ids:
+        clauses.append("b.id = ANY(%s)")
+        params.append(book_ids)
+
+    files = [p.strip() for p in (filters.file_paths or []) if p and p.strip()]
+    if files:
+        clauses.append("b.file_path = ANY(%s)")
+        params.append(files)
+    elif filters.folder_paths:
+        folders: list[str] = []
+        for raw in filters.folder_paths:
             if not raw or not raw.strip():
                 continue
             cleaned = raw.strip()
             if cleaned == "/":
                 folders.append("/")
-            elif cleaned == ".":
-                folders.append(".")
             else:
                 folders.append(cleaned.rstrip("/"))
         patterns = []
-        dot_only = False
         for folder in folders:
             if not folder:
                 continue
-            if folder == ".":
-                dot_only = True
-            elif folder == "/":
+            if folder == "/":
                 patterns.append("/%")
             else:
                 patterns.append(f"{folder}/%")
         if patterns:
-            scope_clauses.append("b.file_path LIKE ANY(%s)")
+            clauses.append("b.file_path LIKE ANY(%s)")
             params.append(patterns)
-        if dot_only:
-            scope_clauses.append("b.file_path NOT LIKE %s")
-            params.append("%/%")
-    if scope_clauses:
-        clauses.append("(" + " OR ".join(scope_clauses) + ")")
 
     if filters.title:
         clauses.append("b.title ILIKE %s")

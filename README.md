@@ -101,7 +101,7 @@ SEKS 现在支持给 `/ask` 挂一个 **OpenAI-compatible** LLM。
 LLM_ENABLED=true
 LLM_BASE_URL=https://example.com/v1
 LLM_API_KEY=your_key_here
-LLM_MODEL=gpt-4o
+LLM_MODEL=qwen3-coder-flash
 LLM_TEMPERATURE=0.2
 LLM_TIMEOUT=60
 ```
@@ -120,7 +120,7 @@ LLM_TIMEOUT=60
   - 如果你的自托管网关不需要 key，可留空
 - `LLM_MODEL`
   - 要调用的模型名
-  - 例如：`gpt-4o`、`gpt-5.4`、`qwen-plus`、`deepseek-chat`
+  - 例如：`qwen3-coder-flash`、`glm4.7`、`gpt-4o`、`deepseek-chat`
 - `LLM_TEMPERATURE`
   - 温度参数，默认 `0.2`
 - `LLM_TIMEOUT`

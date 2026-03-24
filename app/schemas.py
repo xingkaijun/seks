@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class HealthResponse(BaseModel):
@@ -34,19 +35,9 @@ class SearchFilters(BaseModel):
     page_start: int | None = None
     page_end: int | None = None
     domain_tag: str | None = None
-    folder_paths: list[str] | None = None
-    file_paths: list[str] | None = None
-
-
-class ScopeFileOption(BaseModel):
-    book_id: int
-    title: str
-    file_path: str
-
-
-class ScopeOptionsResponse(BaseModel):
-    folders: list[str] = Field(default_factory=list)
-    files: list[ScopeFileOption] = Field(default_factory=list)
+    selected_book_ids: list[int] = Field(default_factory=list)
+    file_paths: list[str] = Field(default_factory=list)
+    folder_paths: list[str] = Field(default_factory=list)
 
 
 class SearchRequest(BaseModel):
@@ -54,6 +45,14 @@ class SearchRequest(BaseModel):
     top_k: int = 10
     filters: SearchFilters | None = None
     rerank: bool | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_question_field(cls, data: Any):
+        if isinstance(data, dict) and not data.get("query") and data.get("question"):
+            data = dict(data)
+            data["query"] = data["question"]
+        return data
 
 
 class AskRequest(BaseModel):
@@ -72,6 +71,8 @@ class Citation(BaseModel):
     chapter: str | None = None
     page_start: int | None = None
     page_end: int | None = None
+    chunk_text: str | None = None
+    score: float | None = None
 
 
 class SearchHit(BaseModel):
@@ -97,3 +98,56 @@ class AskResponse(BaseModel):
     sources: list[SearchHit] = Field(default_factory=list)
     mode: str = "retrieval_only"
     debug: dict[str, Any] | None = None
+
+
+class ChapterSummary(BaseModel):
+    chapter: str | None = None
+    section: str | None = None
+    page_start: int | None = None
+    page_end: int | None = None
+    chunk_count: int = 0
+    summary: str | None = None
+
+
+class BookSummary(BaseModel):
+    id: int
+    title: str
+    author: str | None = None
+    edition: str | None = None
+    publish_year: int | None = None
+    domain_tags: list[str] = Field(default_factory=list)
+    file_path: str
+    file_name: str | None = None
+    folder: str | None = None
+    page_count: int | None = None
+    chunk_count: int = 0
+    created_at: datetime | None = None
+
+
+class BookDetail(BookSummary):
+    chapters: list[ChapterSummary] = Field(default_factory=list)
+
+
+class BookDetailResponse(BookDetail):
+    pass
+
+
+class BookListItem(BookSummary):
+    pass
+
+
+class BookListResponse(BaseModel):
+    books: list[BookListItem] = Field(default_factory=list)
+    total: int = 0
+    items: list[BookSummary] = Field(default_factory=list)
+
+
+class DeleteBookResponse(BaseModel):
+    status: str
+    book_id: int
+    title: str | None = None
+    chunk_count: int = 0
+
+
+class DeleteResponse(DeleteBookResponse):
+    pass

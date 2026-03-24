@@ -3,6 +3,8 @@ from typing import Any
 
 import httpx
 
+from settings_store import load_llm_settings
+
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 
@@ -11,14 +13,40 @@ def _strip(value: str | None) -> str:
     return (value or "").strip()
 
 
+def _coalesce(*values: object) -> str:
+    for value in values:
+        text = _strip(None if value is None else str(value))
+        if text:
+            return text
+    return ""
+
+
 def llm_settings(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     overrides = overrides or {}
-    base_url = _strip(os.getenv("LLM_BASE_URL"))
-    model = _strip(os.getenv("LLM_MODEL"))
-    api_key = _strip(os.getenv("LLM_API_KEY"))
-    enabled_raw = _strip(os.getenv("LLM_ENABLED"))
-    temperature_raw = _strip(os.getenv("LLM_TEMPERATURE"))
-    timeout_raw = _strip(os.getenv("LLM_TIMEOUT"))
+    persisted = load_llm_settings()
+
+    env_base_url = _strip(os.getenv("LLM_BASE_URL"))
+    env_model = _strip(os.getenv("LLM_MODEL"))
+    env_api_key = _strip(os.getenv("LLM_API_KEY"))
+    env_enabled_raw = _strip(os.getenv("LLM_ENABLED"))
+    env_temperature_raw = _strip(os.getenv("LLM_TEMPERATURE"))
+    env_timeout_raw = _strip(os.getenv("LLM_TIMEOUT"))
+
+    base_url = _coalesce(env_base_url, persisted.get("base_url"))
+    model = _coalesce(env_model, persisted.get("model"))
+    api_key = _coalesce(env_api_key, persisted.get("api_key"))
+    enabled_raw = _coalesce(
+        env_enabled_raw,
+        persisted.get("enabled") if persisted.get("enabled") is not None else None,
+    )
+    temperature_raw = _coalesce(
+        env_temperature_raw,
+        persisted.get("temperature") if persisted.get("temperature") is not None else None,
+    )
+    timeout_raw = _coalesce(
+        env_timeout_raw,
+        persisted.get("timeout") if persisted.get("timeout") is not None else None,
+    )
 
     enabled = enabled_raw.lower() in _TRUE_VALUES if enabled_raw else bool(base_url and model)
     try:
@@ -30,11 +58,20 @@ def llm_settings(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     except ValueError:
         timeout = 60.0
 
+    if overrides.get("base_url") is not None:
+        base_url = _strip(str(overrides["base_url"]))
+    if overrides.get("api_key") is not None:
+        api_key = _strip(str(overrides["api_key"]))
     if overrides.get("model") is not None:
         model = _strip(str(overrides["model"]))
     if overrides.get("temperature") is not None:
         try:
             temperature = float(overrides["temperature"])
+        except (TypeError, ValueError):
+            pass
+    if overrides.get("timeout") is not None:
+        try:
+            timeout = float(overrides["timeout"])
         except (TypeError, ValueError):
             pass
     if overrides.get("enabled") is not None:
@@ -65,12 +102,13 @@ async def generate_rag_answer(
         location: list[str] = []
         if item.get("chapter"):
             location.append(str(item["chapter"]))
+        if item.get("section"):
+            location.append(str(item["section"]))
         if item.get("page_start") is not None or item.get("page_end") is not None:
             location.append(f"页码 {item.get('page_start')}-{item.get('page_end')}")
         loc_text = f" / {' / '.join(location)}" if location else ""
         context_lines.append(
             f"[{idx}] 书名: {item.get('book')}{loc_text}\n"
-            f"chunk_id: {item.get('chunk_id')}\n"
             f"内容:\n{item.get('chunk_text', '').strip()}"
         )
 

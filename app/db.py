@@ -32,6 +32,26 @@ def fetch_all(query: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
             return list(cur.fetchall())
 
 
+def fetch_books(q: str | None = None) -> list[dict[str, Any]]:
+    sql = """
+        SELECT
+            b.id,
+            b.title,
+            b.author,
+            b.file_path,
+            COALESCE(b.domain_tags, ARRAY[]::text[]) AS domain_tags,
+            COUNT(c.id) AS chunk_count
+        FROM books b
+        LEFT JOIN chunks c ON c.book_id = b.id
+    """
+    params: list[Any] = []
+    if q:
+        sql += " WHERE b.title ILIKE %s"
+        params.append(f"%{q}%")
+    sql += " GROUP BY b.id ORDER BY b.id ASC"
+    return fetch_all(sql, tuple(params))
+
+
 def fetch_one(query: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
     with get_conn() as conn:
         with conn.cursor() as cur:
