@@ -12,7 +12,7 @@ class HealthResponse(BaseModel):
 
 class IngestRequest(BaseModel):
     file_path: str
-    title: str
+    title: str | None = None
     author: str | None = None
     edition: str | None = None
     publish_year: int | None = None
@@ -184,3 +184,9 @@ class SettingsUpdateRequest(BaseModel):
     llm_temperature: float | None = None
     llm_timeout: float | None = None
     access_password: str | None = None
+
+class BookUpdateRequest(BaseModel):
+    title: str | None = None
+    edition: str | None = None
+    domain_tags: list[str] | None = None
+

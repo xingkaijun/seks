@@ -143,11 +143,11 @@ def _fts_hits(payload: SearchRequest, extra_where: str, extra_params: list, limi
             c.page_start,
             c.page_end,
             c.chunk_text,
-            ts_rank_cd(c.fts, websearch_to_tsquery('jiebacfg', %s)) AS score,
+            ts_rank_cd(c.fts, websearch_to_tsquery('simple', %s)) AS score,
             'fts' AS source
         FROM chunks c
         JOIN books b ON b.id = c.book_id
-        WHERE c.fts @@ websearch_to_tsquery('jiebacfg', %s)
+        WHERE c.fts @@ websearch_to_tsquery('simple', %s)
         {extra_where}
         ORDER BY score DESC, c.id ASC
         LIMIT %s

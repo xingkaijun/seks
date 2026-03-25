@@ -170,3 +170,22 @@ def delete_book(book_id: int) -> dict | None:
         "title": row.get("title") or count_row.get("title") if count_row else row.get("title"),
         "chunk_count": int((count_row or {}).get("chunk_count") or 0),
     }
+
+def update_book(book_id: int, updates: dict) -> dict | None:
+    sets = []
+    params = []
+    if "title" in updates and updates["title"] is not None:
+        sets.append("title = %s")
+        params.append(updates["title"])
+    if "edition" in updates and updates["edition"] is not None:
+        sets.append("edition = %s")
+        params.append(updates["edition"])
+    if "domain_tags" in updates and updates["domain_tags"] is not None:
+        sets.append("domain_tags = %s")
+        params.append(updates["domain_tags"])
+    if not sets:
+        return None
+    params.append(book_id)
+    sql = f"UPDATE books SET {', '.join(sets)} WHERE id = %s RETURNING id, title, edition, domain_tags"
+    return execute_returning(sql, tuple(params))
+

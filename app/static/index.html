@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SEKS 知识检索台</title>
+  <title>SEKS — Ship Engineering Knowledge System</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
@@ -31,6 +31,39 @@
     }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
+
+    
+[data-theme="dark-gray"] {
+  --bg: #1a1a2e;
+  --card: #16213e;
+  --muted: #a0a0b8;
+  --text: #eaeaea;
+  --accent: #e94560;
+  --accent-hover: #c73852;
+  --border: rgba(255,255,255,0.08);
+}
+
+[data-theme="warm"] {
+  --bg: #1c1410;
+  --card: #2a1f1a;
+  --muted: #b09880;
+  --text: #f0e6d8;
+  --accent: #d4a574;
+  --accent-hover: #c4955a;
+  --border: rgba(255,255,255,0.1);
+}
+
+[data-theme="light"] {
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --muted: #6b7280;
+  --text: #1f2937;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --bad: #ef4444;
+  --ok: #22c55e;
+  --border: rgba(0,0,0,0.1);
+}
 
     /* Layout Shell */
     .app-header {
@@ -299,13 +332,24 @@
   <header class="app-header">
     <h1 class="app-title">
       <div class="status-dot" id="db-status" title="正在检查系统状态"></div>
-      SEKS <span style="color:var(--muted);font-weight:400;font-size:16px;">知识检索台</span>
+      SEKS <span style="color:var(--muted);font-weight:400;font-size:14px;">Ship Engineering Knowledge System</span>
     </h1>
-    <div class="nav-tabs">
-      <button class="nav-btn active" data-view="ask">检索问答</button>
-      <button class="nav-btn" data-view="library">书库管理</button>
-      <button class="nav-btn" data-view="settings">系统设置</button>
+    
+    <div style="display:flex;align-items:center;gap:16px;">
+      <select id="theme-select" style="background:transparent;border:1px solid var(--border);
+        color:var(--muted);padding:4px 8px;border-radius:6px;font-size:13px;cursor:pointer;">
+        <option value="">🌊 Deep Blue</option>
+        <option value="dark-gray">🌑 Dark Gray</option>
+        <option value="warm">🔥 Warm</option>
+        <option value="light">☀️ Light</option>
+      </select>
+      <div class="nav-tabs">
+        <button class="nav-btn active" data-view="ask">检索问答</button>
+        <button class="nav-btn" data-view="library">书库管理</button>
+        <button class="nav-btn" data-view="settings">系统设置</button>
+      </div>
     </div>
+
   </header>
 
   <!-- View 1: Ask & Search -->
@@ -393,7 +437,7 @@
 
   <!-- View 2: Library -->
   <div class="view-container" id="view-library" hidden>
-    <div class="form-pane" style="max-width: 800px; margin: 0 auto;">
+    <div class="form-pane" style="max-width: 1000px; margin: 0 auto;">
       <h2 style="margin-top:0;">入库新文档 <span style="font-size:14px;font-weight:normal;color:var(--muted);float:right;">支持 .pdf, .docx, .txt</span></h2>
       <div class="form-group">
         <label>服务器绝对路径 (Docker 容器内)</label>
@@ -405,27 +449,48 @@
         <input type="text" id="ingest_title" placeholder="留空则自动提取文件名">
       </div>
       <button class="primary" id="btn-ingest" style="width:auto;">开始入库解析</button>
+
+      <div id="lib-tree" style="margin-bottom:24px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;max-height:300px;overflow-y:auto;">
+        <div style="text-align:center;color:var(--muted);font-size:13px;">正在加载目录结构...</div>
+      </div>
+      <div class="form-group" style="padding-top:16px;border-top:1px solid var(--border)">
+        <label>上传文件</label>
+        <input type="file" id="upload-files" multiple accept=".pdf,.txt,.md,.docx" style="color:var(--muted);">
+        <small>选择一个或多个文件</small>
+      </div>
+      <div class="form-group">
+        <label>上传文件夹</label>
+        <input type="file" id="upload-folder" webkitdirectory style="color:var(--muted);">
+        <small>选择整个文件夹，保持目录结构</small>
+      </div>
+      <button class="primary btn-small" id="btn-upload" style="margin-bottom:16px;">上传并入库</button>
+      <div id="upload-progress" style="display:none;color:var(--muted);font-size:13px;margin-bottom:16px;"></div>
+
     </div>
 
     <div class="form-pane" style="max-width: 1000px; margin: 0 auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;">已索引书库</h2>
-        <button class="primary btn-small secondary" onclick="loadBooks()">刷新列表</button>
+        <h2 style="margin:0;">Indexed Library
+          <span id="lib-stats" style="font-size:13px;font-weight:400;color:var(--muted);margin-left:12px;"></span>
+        </h2>
+        <button class="primary btn-small secondary" onclick="loadBooks();loadLibraryTree();">Refresh</button>
       </div>
       <div style="overflow-x:auto;">
         <table>
           <thead>
-            <tr>
+                        <tr>
               <th width="80">ID</th>
               <th>书名 (Title)</th>
               <th>文件路径</th>
+              <th>版本</th>
+              <th>标签</th>
               <th width="100">切片数量</th>
               <th width="150">入库时间</th>
               <th width="80">操作</th>
             </tr>
           </thead>
           <tbody id="lib-tbody">
-            <tr><td colspan="6" style="text-align:center;color:var(--muted);">加载中...</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:var(--muted);">加载中...</td></tr>
           </tbody>
         </table>
       </div>
@@ -490,6 +555,63 @@
   let currentMode = "ask"; // "ask" | "search"
   let cachedScopeOptions = { folders: [], files: [] };
 
+  function getAdminPassword() {
+  let pwd = sessionStorage.getItem("admin_pwd");
+  if (!pwd) {
+    pwd = prompt("请输入管理员密码：");
+    if (pwd) sessionStorage.setItem("admin_pwd", pwd);
+  }
+  return pwd || "";
+}
+
+// 事件委托绑定
+document.getElementById("lib-tbody").addEventListener("click", e => {
+  const el = e.target;
+  if (el.classList.contains("editable-title")) inlineEdit(el, "title", el.dataset.id);
+  if (el.classList.contains("editable-edition")) inlineEdit(el, "edition", el.dataset.id);
+  if (el.classList.contains("editable-tags")) inlineEdit(el, "domain_tags", el.dataset.id);
+});
+
+// 通用 inline 编辑函数
+function inlineEdit(el, field, bookId) {
+  const old = el.textContent;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = old === "-" ? "" : old;
+  input.style.cssText = "width:100%;padding:4px;font-size:inherit;";
+  el.replaceWith(input);
+  input.focus();
+
+  async function save() {
+    let val = input.value.trim();
+    let body = {};
+    if (field === "domain_tags") {
+      body[field] = val ? val.split(",").map(s=>s.trim()) : [];
+    } else {
+      body[field] = val || null;
+    }
+    const pwd = getAdminPassword();
+    try {
+      const res = await fetch(`/books/${bookId}`, {
+        method: "PATCH",
+        headers: {"Content-Type":"application/json","X-Admin-Password":pwd},
+        body: JSON.stringify(body)
+      });
+      if (res.status === 403) {
+        sessionStorage.removeItem("admin_pwd");
+        showToast("管理员密码错误", true);
+      } else if (!res.ok) {
+        throw new Error("保存失败");
+      } else {
+        showToast("已保存");
+      }
+    } catch(e) { showToast(e.message || "未知错误", true); }
+    loadBooks(); // 刷新表格
+  }
+  input.addEventListener("blur", save);
+  input.addEventListener("keydown", e => { if(e.key==="Enter") save(); });
+}
+
   // --- Utility & Toast ---
   function showToast(msg, isError = false) {
     const t = document.getElementById("toast");
@@ -508,7 +630,7 @@
       document.querySelectorAll('.view-container').forEach(v => v.hidden = true);
       document.getElementById(`view-${view}`).hidden = false;
 
-      if (view === 'library') loadBooks();
+      if (view === 'library') { loadBooks(); loadLibraryTree(); }
       if (view === 'settings') loadSettings();
       if (view === 'ask' && cachedScopeOptions.files.length === 0) loadScopeOptions();
       
@@ -749,7 +871,7 @@
 
     } catch(e) {
       indicator.innerHTML = `<span style="color:var(--bad)">错误: ${e.message}</span>`;
-      showToast(e.message, true);
+      showToast(e.message || "未知错误", true);
     } finally {
       btn.disabled = false;
       btn.innerHTML = currentMode === "ask" ? "提交 Ask" : "提交 Search";
@@ -795,33 +917,193 @@
       showToast("设置已保存并生效。");
       loadSettings(); // re-fetch to see masked keys
     } catch(e) {
-      showToast(e.message, true);
+      showToast(e.message || "未知错误", true);
     } finally {
       btn.disabled = false; btn.textContent = "保存系统配置";
     }
   });
 
+  
+  document.getElementById("theme-select").addEventListener("change", (e) => {
+    const theme = e.target.value;
+    if (theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    localStorage.setItem("seks-theme", theme);
+  });
+  // 页面加载时恢复主题
+  (function() {
+    const saved = localStorage.getItem("seks-theme");
+    if (saved) {
+      document.documentElement.setAttribute("data-theme", saved);
+      document.getElementById("theme-select").value = saved;
+    }
+  })();
+
+  async function pollIngestStatus(taskId, fileName) {
+    const prog = document.getElementById("upload-progress");
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/ingest/status/${taskId}`);
+        const data = await res.json();
+        if (data.status === "running") {
+          prog.textContent = `${fileName}: 索引中 ${data.progress}/${data.total_chunks}`;
+        } else if (data.status === "done") {
+          clearInterval(poll);
+          showToast(`${fileName} 入库完成`);
+          loadBooks();
+          loadLibraryTree();
+        } else if (data.status === "error") {
+          clearInterval(poll);
+          showToast(`${fileName}: ${data.error}`, true);
+        }
+      } catch(e) { clearInterval(poll); }
+    }, 1500);
+  }
+
+  document.getElementById("btn-upload").addEventListener("click", async () => {
+    const fileInput = document.getElementById("upload-files");
+    const folderInput = document.getElementById("upload-folder");
+    const files = [...fileInput.files, ...folderInput.files];
+    if (!files.length) return showToast("请先选择文件", true);
+
+    const btn = document.getElementById("btn-upload");
+    const prog = document.getElementById("upload-progress");
+    btn.disabled = true;
+    prog.style.display = "block";
+
+    for (let i = 0; i < files.length; i++) {
+      prog.textContent = `上传中 (${i+1}/${files.length}): ${files[i].name}`;
+      const form = new FormData();
+      form.append("file", files[i]);
+      const relPath = files[i].webkitRelativePath;
+      if (relPath) {
+        const dir = relPath.substring(0, relPath.lastIndexOf("/"));
+        form.append("sub_path", dir);
+      }
+      try {
+        const adminPw = getAdminPassword();
+        const res = await fetch("/upload", { 
+          method: "POST", 
+          headers: {"X-Admin-Password": adminPw},
+          body: form 
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || "上传失败");
+        const data = await res.json();
+        
+        prog.textContent = `入库中 (${i+1}/${files.length}): ${files[i].name}`;
+        const ingestRes = await fetch("/ingest", {
+          method: "POST",
+          headers: {"Content-Type":"application/json", "X-Admin-Password": adminPw},
+          body: JSON.stringify({ file_path: data.file_path, title: "" })
+        });
+        if (!ingestRes.ok) throw new Error((await ingestRes.json()).detail || "入库失败");
+        const ingestData = await ingestRes.json();
+        pollIngestStatus(ingestData.task_id, files[i].name);
+      } catch(e) {
+        showToast(`${files[i].name}: ${e.message}`, true);
+      }
+    }
+    btn.disabled = false;
+    fileInput.value = "";
+    folderInput.value = "";
+    cachedScopeOptions = {folders:[], files:[]};
+  });
+
+  async function loadLibraryStats() {
+    try {
+      const res = await fetch("/api/library-stats");
+      const data = await res.json();
+      document.getElementById("lib-stats").textContent =
+        `${data.book_count} books · ${data.chunk_count} chunks · ${data.total_pages} pages`;
+    } catch(e) {}
+  }
+
+  async function loadLibraryTree() {
+    const container = document.getElementById("lib-tree");
+    try {
+      const res = await fetch("/api/library-tree");
+      const data = await res.json();
+      container.innerHTML = renderTreeNodes(data.tree, true);
+    } catch(e) {
+      container.innerHTML = '<div style="color:var(--bad)">加载目录失败</div>';
+    }
+  }
+
+  function renderTreeNodes(nodes, expanded) {
+    if (!nodes || nodes.length === 0) return '';
+    let html = `<ul style="list-style:none;padding-left:16px;${expanded?'':'display:none;'}">`;
+    for (const node of nodes) {
+      if (node.type === "dir") {
+        html += `<li>
+          <span class="tree-toggle" onclick="this.classList.toggle('open');
+            this.nextElementSibling.style.display=
+            this.nextElementSibling.style.display==='none'?'block':'none'"
+            style="cursor:pointer;font-weight:600;color:var(--accent);">
+            ▶ 📁 ${node.name}
+          </span>
+          ${renderTreeNodes(node.children, false)}
+        </li>`;
+      } else {
+        const badge = node.indexed
+          ? `<span style="color:var(--ok);font-size:12px;">[已索引]</span>`
+          : `<button class="btn-small" onclick="ingestFromTree('${node.path.replace(/\\/g, '\\\\')}')"
+             style="font-size:11px;padding:2px 6px;">入库</button>`;
+        html += `<li style="padding:2px 0;font-size:13px;color:var(--muted);">
+          📄 ${node.name} ${badge}
+        </li>`;
+      }
+    }
+    html += "</ul>";
+    return html;
+  }
+
+  async function ingestFromTree(filePath) {
+    try {
+      const adminPw = getAdminPassword();
+      const res = await fetch("/ingest", {
+        method: "POST",
+        headers: {"Content-Type":"application/json", "X-Admin-Password": adminPw},
+        body: JSON.stringify({ file_path: filePath, title: "" })
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || "入库失败");
+      const data = await res.json();
+      showToast("入库已提交");
+      pollIngestStatus(data.task_id, filePath);
+    } catch(e) { showToast(e.message, true); }
+  }
+
+
   // --- Library logic (Briefly ported) ---
-  document.getElementById("btn-ingest").addEventListener("click", async () => {
+    document.getElementById("btn-ingest").addEventListener("click", async () => {
     const path = document.getElementById("ingest_path").value.trim();
     if (!path) return showToast("请输入文件路径", true);
     const btn = document.getElementById("btn-ingest");
     btn.disabled = true; btn.textContent = "解析入库中...";
     try {
+      const adminPw = getAdminPassword();
       const res = await fetch("/ingest", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: {"Content-Type":"application/json", "X-Admin-Password": adminPw},
         body: JSON.stringify({ file_path: path, title: document.getElementById("ingest_title").value.trim() })
       });
+      if (!res.ok) {
+        if (res.status === 403) {
+            sessionStorage.removeItem("admin_pwd");
+            throw new Error("管理员密码错误")
+        }
+        throw new Error((await res.json()).detail || "入库失败");
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "入库失败");
-      showToast(`入库成功，书籍ID: ${data.book_id}`);
+      showToast(`入库任务已提交`);
+      pollIngestStatus(data.task_id, path);
       document.getElementById("ingest_path").value = "";
       document.getElementById("ingest_title").value = "";
-      loadBooks();
       cachedScopeOptions = {folders:[], files:[]}; // invalidate scope cache
     } catch (e) {
-      showToast(e.message, true);
+      showToast(e.message || "未知错误", true);
     } finally {
        btn.disabled = false; btn.textContent = "开始入库解析";
     }
@@ -829,22 +1111,37 @@
 
   async function loadBooks() {
     const tb = document.getElementById("lib-tbody");
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;">加载中...</td></tr>';
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;">加载中...</td></tr>';
     try {
       const res = await fetch("/books?limit=100");
       const data = await res.json();
       tb.innerHTML = "";
+      loadLibraryStats();
       if (!data.items || data.items.length === 0) {
-        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;">书库为空</td></tr>';
+        tb.innerHTML = '<tr><td colspan="8" style="text-align:center;">书库为空</td></tr>';
         return;
       }
       data.items.forEach(b => {
         const tr = document.createElement("tr");
         const dt = new Date(b.created_at).toLocaleString('zh-CN', {hour12: false});
-        tr.innerHTML = `
+                tr.innerHTML = `
           <td>${b.id}</td>
-          <td style="font-weight:600;color:var(--text);">${escapeHtml(b.title||'-')}</td>
+          <td>
+            <span class="editable-title" data-id="${b.id}"
+                  style="cursor:pointer;font-weight:600;color:var(--text);"
+                  title="点击编辑">${escapeHtml(b.title||'-')}</span>
+          </td>
           <td style="color:var(--muted);font-size:13px;word-break:break-all;">${escapeHtml(b.file_path)}</td>
+          <td>
+            <span class="editable-edition" data-id="${b.id}"
+                  style="cursor:pointer;color:var(--muted);font-size:13px;"
+                  title="点击编辑">${escapeHtml(b.edition||'-')}</span>
+          </td>
+          <td>
+            <span class="editable-tags" data-id="${b.id}"
+                  style="cursor:pointer;color:var(--muted);font-size:13px;"
+                  title="点击编辑">${(b.domain_tags||[]).join(', ')||'-'}</span>
+          </td>
           <td>${b.chunk_count||0}</td>
           <td style="font-size:13px;color:var(--muted);">${dt}</td>
           <td><button class="btn-small btn-danger" onclick="delBook(${b.id})">删除</button></td>
@@ -852,23 +1149,36 @@
         tb.appendChild(tr);
       });
     } catch(e) {
-      tb.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--bad)">加载书库失败</td></tr>`;
+      tb.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--bad)">加载书库失败</td></tr>`;
     }
   }
 
   async function delBook(id) {
     if (!confirm(`确定删除书籍 [ID:${id}] 及所有相关切片吗？此操作不可恢复。`)) return;
+    const pwd = getAdminPassword();
     try {
-      const res = await fetch(`/books/${id}`, { method: "DELETE" });
+      const res = await fetch(`/books/${id}`, { 
+        method: "DELETE",
+        headers: { "X-Admin-Password": pwd }
+      });
+      if (res.status === 403) {
+        sessionStorage.removeItem("admin_pwd");
+        showToast("管理员密码错误", true);
+        return;
+      }
       if (!res.ok) throw new Error("删除失败");
       showToast(`已删除书籍 ${id}`);
       loadBooks();
       cachedScopeOptions = {folders:[], files:[]}; // invalidate scope cache
     } catch(e) {
-      showToast(e.message, true);
+      showToast(e.message || "未知错误", true);
     }
   }
 
 </script>
+<footer style="text-align:center;padding:16px;color:var(--muted);font-size:12px;
+  border-top:1px solid var(--border);margin-top:32px;">
+  Developed by Kevin @ PG Newbuilding
+</footer>
 </body>
 </html>
