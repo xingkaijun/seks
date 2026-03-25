@@ -2,7 +2,7 @@ import os
 import re
 
 from llm import generate_rag_answer, llm_settings
-from query_utils import apply_light_rerank, expand_question_queries, is_noisy_chunk, keyword_terms, question_type
+from query_utils import apply_light_rerank, expand_question_queries, is_noisy_chunk, keyword_terms
 from retrieval import hybrid_retrieve
 from schemas import AskRequest, AskResponse, Citation, SearchRequest
 
@@ -31,6 +31,7 @@ def _resolve_rerank(payload_flag: bool | None) -> bool:
 
 
 def _extract_relevant_excerpt(text: str, keywords: set[str]) -> str:
+    """从文本中提取与关键词最相关的片段。"""
     cleaned = text.strip().replace("\r", "")
     parts = [p.strip() for p in _SENTENCE_SPLIT_RE.split(cleaned) if p.strip()]
     if not parts:
@@ -43,8 +44,6 @@ def _extract_relevant_excerpt(text: str, keywords: set[str]) -> str:
         for kw in keywords:
             if kw in lowered or kw in part:
                 score += 2
-        if any(term in lowered for term in ["trial", "test", "procedure", "approval", "transformer", "capacity", "quantity"]):
-            score += 2
         if is_noisy_chunk(part):
             score -= 3
         scored.append((score, part))
@@ -65,129 +64,8 @@ def _dedupe_hits(hits):
     return out
 
 
-def _extract_trial_items(hits) -> list[str]:
-    patterns = [
-        ("progressive speed trial", "渐进航速试验"),
-        ("shaft generator test", "轴带发电机试验"),
-        ("shaft locking device", "轴锁定装置试验"),
-        ("unmanned engine room test", "无人机舱运行试验"),
-        ("vibration measurement", "振动测量"),
-        ("over speed running", "超速运行试验"),
-        ("crash stop astern test", "倒车紧急停车试验"),
-        ("endurance trial", "耐久试验"),
-        ("speed trial", "航速试验"),
-        ("sea trial procedure", "试航程序审批/确认"),
-    ]
-
-    found: list[str] = []
-    seen: set[str] = set()
-    for hit in hits:
-        lowered = hit.chunk_text.lower()
-        for needle, label in patterns:
-            if needle in lowered and label not in seen:
-                seen.add(label)
-                found.append(label)
-    return found
-
-
-def _infer_evidence_label(hit) -> str:
-    text = hit.chunk_text or ""
-    lowered = text.lower()
-
-    if "8.1.4" in text and "high voltage transformers" in lowered:
-        return "8.1.4 Transformer / High voltage transformers"
-    if "low voltage transformers" in lowered:
-        return "8.1.4 Transformer / Low voltage transformers"
-    if any(k in lowered for k in ["220v normal", "220v em", "220v fwd", "galley/laundry"]):
-        return "8.1.4 Transformer / Low voltage transformers"
-    if any(k in lowered for k in ["440v general service", "440v cargo service", "reliquefaction"]):
-        return "8.1.4 Transformer / High voltage transformers"
-    if "8.1.4" in text:
-        return "8.1.4 Transformer"
-    if "transformer" in lowered:
-        return "Transformer 相关章节"
-    return f"《{hit.book}》相关片段"
-
-
-def _extract_transformer_table(hits) -> list[dict]:
-    rows: list[dict] = []
-    seen: set[tuple[str, str, str]] = set()
-
-    for hit in hits:
-        text = hit.chunk_text
-        lowered = text.lower()
-        if "transformer" not in lowered and "capacity" not in lowered and "voltage" not in lowered:
-            continue
-
-        compact = re.sub(r"\s+", " ", text)
-        evidence_label = _infer_evidence_label(hit)
-
-        hv = re.search(
-            r"Application\s+440V General Service\s+440V Cargo Service\s+Reliquefaction\s+Quantity\s+Two \(2\)\s+Two \(2\)\s+One\s+\(1-wk, 1-sb\)\s+\(1-wk, 1-sb\)\s+Capacity\s+([\d,]+\s*kVA)\s+([\d,]+\s*kVA)",
-            compact,
-            re.IGNORECASE,
-        )
-        if hv:
-            candidates = [
-                ("440V General Service Transformer", "2", hv.group(1)),
-                ("440V Cargo Service Transformer", "2", hv.group(2)),
-                ("Reliquefaction Transformer", "1", "待继续从相邻原文补全"),
-            ]
-            for app, qty, cap in candidates:
-                key = (app, qty, cap)
-                if key not in seen:
-                    seen.add(key)
-                    rows.append({"name": app, "quantity": qty, "capacity": cap, "evidence_label": evidence_label})
-
-        lv = re.search(
-            r"Application\s+220V Normal\s+220V Em[’']?cy\s+220V Fwd\s+220V\s+Lighting\s+Lighting\s+Lighting\s+Galley/Laundry\s+Isolation\s+Quantity\s+Two \(2\)\s+Two \(2\)\s+One \(1\)\s+One \(1\)\s+\(1-wk, 1-sb\)\s+\(1-wk, 1-sb\)\s+Capacity\s+([\d,]+\s*kVA)\s+([\d,]+\s*kVA)\s+([\d,]+\s*kVA)\s+([\d,]+\s*kVA)",
-            compact,
-            re.IGNORECASE,
-        )
-        if lv:
-            candidates = [
-                ("220V Normal Lighting Transformer", "2", lv.group(1)),
-                ("220V Emergency Lighting Transformer", "2", lv.group(2)),
-                ("220V Forward Lighting Transformer", "1", lv.group(3)),
-                ("220V Galley/Laundry Isolation Transformer", "1", lv.group(4)),
-            ]
-            for app, qty, cap in candidates:
-                key = (app, qty, cap)
-                if key not in seen:
-                    seen.add(key)
-                    rows.append({"name": app, "quantity": qty, "capacity": cap, "evidence_label": evidence_label})
-
-    return rows
-
-
-def _structured_summary(question: str, hits) -> str | None:
-    qtype = question_type(question)
-    useful_hits = [hit for hit in hits if not is_noisy_chunk(hit.chunk_text)] or hits[:5]
-
-    if qtype == "trial":
-        items = _extract_trial_items(useful_hits)
-        if items:
-            lines = [f"问题：{question}", "整理结果（结构化抽取）："]
-            for idx, item in enumerate(items[:10], start=1):
-                lines.append(f"{idx}. {item}")
-            lines.append("\n可在下方证据区查看对应原文片段。")
-            return "\n".join(lines)
-
-    if "变压器" in question or "transformer" in question.lower():
-        rows = _extract_transformer_table(hits)
-        if rows:
-            lines = [f"问题：{question}", "整理结果（结构化抽取）：", "已识别到的变压器类型 / 数量 / 容量如下："]
-            for idx, row in enumerate(rows, start=1):
-                lines.append(
-                    f"{idx}. {row['name']} —— 数量：{row['quantity']}；容量：{row['capacity']}（证据位置：{row['evidence_label']}）"
-                )
-            lines.append("\n说明：当前结果来自命中表格的规则抽取；若要补齐未完整显示项，可继续查看下方原文证据。")
-            return "\n".join(lines)
-
-    return None
-
-
 def _fallback_summary(question: str, hits) -> str:
+    """基于检索结果生成通用摘要回答。"""
     if not hits:
         return "当前知识库里没有检索到足够证据，暂时不能可靠回答这个问题。"
 
@@ -207,7 +85,7 @@ def _fallback_summary(question: str, hits) -> str:
         loc_text = f"（{'，'.join(loc)}）" if loc else ""
         lines.append(f"证据 {idx}. 《{hit.book}》{loc_text}：{excerpt}")
 
-    lines.append("以上内容为基于检索结果的整理；当前仍是 retrieval-only 回答，但已尽量过滤表格噪声并保留可追溯证据。")
+    lines.append("以上内容为基于检索结果的整理；当前仍是 retrieval-only 回答，已尽量过滤噪声并保留可追溯证据。")
     return "\n".join(lines)
 
 
@@ -232,7 +110,7 @@ async def ask_documents(payload: AskRequest) -> AskResponse:
     queries = expand_question_queries(payload.question)
     candidate_k = max(payload.top_k, 8)
     for query in queries:
-        hits, debug = hybrid_retrieve(
+        hits, debug = await hybrid_retrieve(
             SearchRequest(query=query, top_k=candidate_k, filters=payload.filters),
             rerank=False,
         )
@@ -275,7 +153,6 @@ async def ask_documents(payload: AskRequest) -> AskResponse:
     debug: dict = {
         "retrieved_hits": len(top_hits),
         "queries": queries,
-        "question_type": question_type(payload.question),
         "rerank_enabled": ask_rerank_enabled,
         "retrieval": {
             "per_query": retrieval_debug,
@@ -304,7 +181,7 @@ async def ask_documents(payload: AskRequest) -> AskResponse:
             llm_error = str(exc)
 
     if not answer:
-        answer = _structured_summary(payload.question, top_hits) or _fallback_summary(payload.question, top_hits)
+        answer = _fallback_summary(payload.question, top_hits)
 
     debug["mode"] = mode
     if llm_error:

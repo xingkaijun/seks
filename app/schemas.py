@@ -151,3 +151,36 @@ class DeleteBookResponse(BaseModel):
 
 class DeleteResponse(DeleteBookResponse):
     pass
+
+
+class ScopeFileOption(BaseModel):
+    book_id: int
+    title: str
+    file_path: str
+
+
+class ScopeOptionsResponse(BaseModel):
+    folders: list[str] = Field(default_factory=list)
+    files: list[ScopeFileOption] = Field(default_factory=list)
+
+
+class SettingsResponse(BaseModel):
+    llm_enabled: bool = False
+    llm_base_url: str = ""
+    llm_model: str = ""
+    llm_api_key: str = ""
+    llm_temperature: float = 0.2
+    llm_timeout: float = 60.0
+    embedding_provider: str = "local_sentence_transformers"
+    embedding_model: str = ""
+    access_password: str = ""
+
+
+class SettingsUpdateRequest(BaseModel):
+    llm_enabled: bool | None = None
+    llm_base_url: str | None = None
+    llm_model: str | None = None
+    llm_api_key: str | None = None
+    llm_temperature: float | None = None
+    llm_timeout: float | None = None
+    access_password: str | None = None

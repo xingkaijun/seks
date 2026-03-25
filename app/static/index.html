@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SEKS 知识检索台</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --bg: #0b1020;
@@ -11,1544 +13,862 @@
       --muted: #97a0b7;
       --text: #e9ecf5;
       --accent: #6aa7ff;
+      --accent-hover: #4d8ce6;
       --bad: #ff6a6a;
       --ok: #41d19a;
       --border: rgba(255,255,255,0.09);
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
     }
 
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: var(--sans);
+      font-family: var(--font-family);
       background: radial-gradient(1200px 800px at 10% -10%, rgba(106,167,255,0.35), transparent 50%), var(--bg);
+      background-attachment: fixed;
       color: var(--text);
+      line-height: 1.5;
     }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
-    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 18px 36px; }
-    header { padding: 24px 0 8px; }
-    h1 { margin: 0 0 8px; font-size: 24px; }
-    .sub { color: var(--muted); font-size: 14px; line-height: 1.6; }
 
-    .bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 16px 0 0; }
-    .pill {
-      display: inline-flex;
+    /* Layout Shell */
+    .app-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
       align-items: center;
-      gap: 8px;
-      border: 1px solid var(--border);
-      background: rgba(255,255,255,0.03);
-      padding: 8px 10px;
-      border-radius: 999px;
-      max-width: 100%;
+      justify-content: space-between;
+      background: rgba(11,16,32,0.8);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; box-shadow: 0 0 0 2px rgba(255,255,255,0.06) inset; }
-    .dot.ok { background: var(--ok); }
-    .dot.bad { background: var(--bad); }
+    .app-title { margin: 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #666; box-shadow: 0 0 0 2px rgba(255,255,255,0.06) inset; }
+    .status-dot.ok { background: var(--ok); }
+    .status-dot.bad { background: var(--bad); }
 
-    input[type="text"], input[type="number"], textarea {
-      width: 100%;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 10px 10px;
-      border-radius: 10px;
-      outline: none;
-    }
-    input::placeholder, textarea::placeholder { color: rgba(233,236,245,0.35); }
-    textarea { min-height: 92px; resize: vertical; }
-
-    button {
-      background: linear-gradient(180deg, rgba(106,167,255,0.95), rgba(106,167,255,0.75));
-      color: #071024;
-      border: 0;
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-weight: 650;
-      cursor: pointer;
-    }
-    button.secondary {
-      background: rgba(255,255,255,0.06);
-      color: var(--text);
-      border: 1px solid var(--border);
-      font-weight: 600;
-    }
-    button:disabled { opacity: 0.55; cursor: not-allowed; }
-
-    .grid-top { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(0, 2fr); gap: 16px; margin-top: 18px; align-items: start; }
-    .grid-bottom { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
-    @media (max-width: 980px) {
-      .grid-top { grid-template-columns: 1fr; }
-    }
-    .tabbar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-    .tab-btn {
-      background: rgba(255,255,255,0.06);
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 8px 14px;
-      border-radius: 999px;
+    .nav-tabs { display: flex; gap: 8px; }
+    .nav-btn {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
     }
-    .tab-btn.active {
-      background: linear-gradient(180deg, rgba(106,167,255,0.95), rgba(106,167,255,0.75));
-      color: #071024;
-      border: 0;
+    .nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .nav-btn.active {
+      background: rgba(106,167,255,0.15);
+      color: var(--accent);
     }
-    .page-section[hidden] { display: none !important; }
-    .qa-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
-    .mode-tabs {
+
+    .view-container { max-width: 1440px; margin: 0 auto; padding: 24px; }
+    .view-container[hidden] { display: none !important; }
+
+    /* 3-Column Layout for Ask/Search */
+    .main-layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 14px;
+      grid-template-columns: 20% 35% 1fr;
+      gap: 20px;
+      height: calc(100vh - 120px);
     }
-    .mode-tab {
-      width: 100%;
-      text-align: left;
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
+    @media (max-width: 1100px) {
+      .main-layout { grid-template-columns: 250px 1fr !important; }
+      .col-result { grid-column: 1 / -1; }
+      .main-layout { height: auto; }
+    }
+    @media (max-width: 768px) {
+      .main-layout { grid-template-columns: 1fr !important; }
+    }
+
+    .col-panel {
+      background: var(--card);
       border: 1px solid var(--border);
-      padding: 12px 14px;
       border-radius: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      min-height: 86px;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-    }
-    .mode-tab small {
-      display: block;
-      margin-top: 6px;
-      color: var(--muted);
-      font-weight: 500;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-    .mode-tab.active {
-      background: linear-gradient(180deg, rgba(106,167,255,0.16), rgba(106,167,255,0.08));
-      border-color: rgba(106,167,255,0.45);
-      box-shadow: inset 0 0 0 1px rgba(106,167,255,0.18);
-    }
-    .mode-panel[hidden] { display: none !important; }
-    .result-card .body { padding-top: 12px; }
-    .result-card { min-height: 78vh; }
-    .result-shell { display: grid; gap: 14px; height: 100%; }
-    .result-empty {
-      padding: 18px;
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
-      background: rgba(255,255,255,0.02);
-    }
-    .result-section { display: none; }
-    .result-section.active { display: block; }
-    .source-path {
-      margin-top: 6px;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .source-path .badge {
-      background: rgba(106,167,255,0.06);
-    }
-
-    .card {
-      background: rgba(18,26,51,0.86);
-      border: 1px solid var(--border);
-      border-radius: 16px;
       overflow: hidden;
     }
-    .card h2 {
-      margin: 0;
+    .panel-header {
       padding: 14px 16px;
       border-bottom: 1px solid var(--border);
+      font-weight: 600;
       background: rgba(255,255,255,0.02);
-      font-size: 16px;
+      flex-shrink: 0;
     }
-    .card .body { padding: 16px; }
-    .section-desc {
-      margin: 0 0 14px;
-      font-size: 13px;
-      line-height: 1.65;
-      color: var(--muted);
+    .panel-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex-grow: 1;
     }
 
-    .row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; margin: 10px 0; }
-    .row.full { grid-template-columns: 1fr; }
-    .row label { font-size: 13px; color: var(--muted); }
-    .hint { margin-top: 6px; font-size: 12px; color: rgba(151,160,183,0.88); line-height: 1.6; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    /* Common Forms */
+    input[type="text"], input[type="number"], input[type="password"], textarea, select {
+      width: 100%;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: rgba(106,167,255,0.5);
+    }
+    input::placeholder, textarea::placeholder { color: rgba(233,236,245,0.3); }
+    textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
 
-    .out {
-      margin-top: 14px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .out .meta {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.02);
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .err {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(255,106,106,0.10);
-      color: rgba(233,236,245,0.92);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-    pre {
-      margin: 0;
-      padding: 12px;
-      font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .search-list { display: grid; gap: 12px; }
-    .hit-card {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(255,255,255,0.03);
-      overflow: hidden;
-    }
-    .hit-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: center;
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.02);
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-    .hit-title { font-size: 13px; font-weight: 700; }
-    .hit-sub { font-size: 12px; color: var(--muted); }
-    .hit-body { padding: 12px; }
-    .hit-snippet {
-      font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.65;
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin: 0;
-      max-height: 10.5em;
-      overflow: hidden;
-    }
-    .hit-snippet.expanded { max-height: none; }
-    .hit-meta-line {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 2px 8px;
-      background: rgba(255,255,255,0.04);
-    }
-    .hit-head-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    .hit-open { font-size: 12px; padding: 6px 10px; }
-    .hit-card.clickable {
+    button.primary {
+      background: linear-gradient(180deg, rgba(106,167,255,0.95), rgba(106,167,255,0.75));
+      color: #071024;
+      border: 0;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
       cursor: pointer;
-      transition: border-color 0.15s ease, transform 0.15s ease;
+      font-family: inherit;
+      width: 100%;
+      transition: opacity 0.2s;
     }
-    .hit-card.clickable:hover {
-      border-color: rgba(106,167,255,0.35);
-      transform: translateY(-1px);
-    }
+    button.primary:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5 !important; cursor: not-allowed; }
 
-    body.modal-open { overflow: hidden; }
-    .modal {
-      position: fixed;
-      inset: 0;
-      display: none;
+    .btn-small { width: auto !important; padding: 6px 12px !important; font-size: 13px; }
+    .btn-danger { background: rgba(255,106,106,0.15) !important; color: var(--bad) !important; border: 1px solid rgba(255,106,106,0.3) !important; }
+
+    /* Left: Book Tree */
+    .tree-folder { margin-bottom: 12px; }
+    .tree-folder-name {
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      display: flex;
       align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-    .modal.active { display: flex; }
-    .modal-backdrop {
-      position: absolute;
-      inset: 0;
-      background: rgba(7,12,24,0.72);
-      backdrop-filter: blur(6px);
-    }
-    .modal-card {
-      position: relative;
-      width: min(920px, calc(100% - 32px));
-      max-height: 85vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: rgba(18,26,51,0.95);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 30px 80px rgba(0,0,0,0.35);
-    }
-    .modal-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(255,255,255,0.03);
-    }
-    .modal-title { font-size: 15px; font-weight: 700; }
-    .modal-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
-    .modal-meta {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
-    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-    .modal-body { padding: 14px; overflow: auto; }
-    .detail-label { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-    .modal-markdown { font-size: 13px; line-height: 1.7; color: var(--text); }
-    .modal-markdown h1 { font-size: 18px; margin: 0 0 10px; }
-    .modal-markdown h2 { font-size: 16px; margin: 12px 0 8px; }
-    .modal-markdown h3 { font-size: 14px; margin: 10px 0 6px; }
-    .modal-markdown p { margin: 0 0 10px; }
-    .modal-markdown ul,
-    .modal-markdown ol { margin: 0 0 10px 18px; }
-    .modal-markdown blockquote {
-      margin: 0 0 10px;
-      padding: 8px 10px;
-      border-left: 3px solid rgba(106,167,255,0.5);
-      background: rgba(255,255,255,0.03);
-    }
-    .modal-markdown code {
-      background: rgba(255,255,255,0.06);
-      padding: 1px 6px;
-      border-radius: 6px;
-    }
-    .modal-markdown pre {
-      background: rgba(7,12,24,0.6);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
-      overflow: auto;
-    }
-    .modal-markdown pre code { background: transparent; padding: 0; }
-
-    .tips ul {
-      margin: 0;
-      padding-left: 18px;
-      color: rgba(233,236,245,0.92);
+      gap: 6px;
+      margin-bottom: 6px;
       font-size: 13px;
-      line-height: 1.75;
     }
-    .footer { margin-top: 16px; color: rgba(151,160,183,0.85); font-size: 12px; }
-    code { font-family: var(--mono); }
+    .tree-folder-name::before { content: '📁'; font-size: 12px; }
+    .tree-folder-name.collapsed::before { content: '📁'; opacity: 0.6; }
+    .tree-files { padding-left: 14px; display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--border); margin-left: 5px; }
+    .tree-files.collapsed { display: none; }
+    .tree-file-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      color: var(--muted);
+    }
+    .tree-file-label:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .tree-file-label input { margin-top: 3px; cursor: pointer; }
+    .tree-file-name { word-break: break-all; }
+
+    /* Center: Input Panel */
+    .mode-switch {
+      display: flex;
+      background: rgba(0,0,0,0.2);
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+    .mode-switch button {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .mode-switch button.active {
+      background: rgba(106,167,255,0.15);
+      color: var(--accent);
+    }
+
+    details.advanced-settings {
+      margin: 16px 0;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+    }
+    details.advanced-settings summary {
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--muted);
+      outline: none;
+      font-size: 14px;
+    }
+    details.advanced-settings summary:hover { color: var(--text); }
+    .adv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .adv-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+
+    /* Right: Result Panel */
+    .answer-box {
+      font-size: 15px;
+      line-height: 1.6;
+      display: none;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 1.5em; margin-bottom: 0.5em; }
+    .markdown-body p { margin-top: 0; margin-bottom: 1em; }
+    .markdown-body ul { padding-left: 20px; }
+    .markdown-body pre { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; overflow-x: auto; font-family: var(--mono, monospace); font-size: 13px; border: 1px solid var(--border); }
+    .markdown-body code { font-family: var(--mono, monospace); background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; font-size: 0.9em; }
+
+    .hit-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .hit-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 12px; }
+    .hit-title { font-weight: 600; color: var(--accent); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+    .hit-title small { color: var(--muted); font-weight: 400; font-size: 12px; }
+    .hit-score { font-family: var(--mono, monospace); font-size: 12px; padding: 2px 6px; background: rgba(255,255,255,0.05); border-radius: 4px; color: var(--muted); white-space: nowrap; }
+    .hit-text { font-size: 14px; line-height: 1.6; color: rgba(255,255,255,0.85); white-space: pre-wrap; word-break: break-all; }
+    mark { background: rgba(106,167,255,0.25); color: inherit; padding: 0 2px; border-radius: 3px; font-weight: 600; }
+
+    #state-indicator { font-size: 13px; color: var(--muted); text-align: center; padding: 20px; }
+
+    /* Settings UI & Library UI Grid */
+    .form-pane {
+      max-width: 600px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; color: var(--text); }
+    .form-group small { display: block; color: var(--muted); margin-top: 4px; font-size: 12px; max-width: 480px;}
+
+    /* Library Table */
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: rgba(255,255,255,0.02); font-weight: 600; color: var(--muted); }
+    tbody tr:hover { background: rgba(255,255,255,0.01); }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--card); border: 1px solid var(--border); padding: 12px 20px;
+      border-radius: 8px; font-size: 14px; z-index: 9999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      transform: translateY(100px); opacity: 0; transition: all 0.3s;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    .loader {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <header class="wrap">
-    <h1>SEKS 知识检索台</h1>
-    <div class="sub">给造船/工程资料做入库、检索和问答的轻量页面。上半区先查、先问；下半区再做资料入库，适合日常快速使用。</div>
 
-    <div class="bar">
-      <div class="pill" title="API 基础地址，留空表示与当前页面同源">
-        <span style="color: var(--muted); font-size: 12px;">API 地址</span>
-        <input id="baseUrl" type="text" placeholder="留空=当前页面同源" style="width: 320px; padding: 7px 10px; border-radius: 999px;" />
-        <button class="secondary" id="btnHealth">刷新健康状态</button>
-      </div>
-      <div class="pill">
-        <span class="dot" id="healthDot"></span>
-        <span style="font-size: 12px; color: var(--muted);">健康检查</span>
-        <span style="font-size: 12px;" id="healthText">未知</span>
-      </div>
-      <div class="pill" title="当前页面来源" style="max-width: 520px;">
-        <span style="font-size: 12px; color: var(--muted);">当前来源</span>
-        <span id="originText" style="font-size: 12px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
-      </div>
-    </div>
-    <div class="tabbar" role="tablist" aria-label="页面切换">
-      <button class="tab-btn active" id="tabQa" role="tab" aria-selected="true" aria-controls="pageQa" data-page="qa" type="button">检索问答</button>
-      <button class="tab-btn" id="tabLibrary" role="tab" aria-selected="false" aria-controls="pageLibrary" data-page="library" type="button">书库管理</button>
+  <header class="app-header">
+    <h1 class="app-title">
+      <div class="status-dot" id="db-status" title="正在检查系统状态"></div>
+      SEKS <span style="color:var(--muted);font-weight:400;font-size:16px;">知识检索台</span>
+    </h1>
+    <div class="nav-tabs">
+      <button class="nav-btn active" data-view="ask">检索问答</button>
+      <button class="nav-btn" data-view="library">书库管理</button>
+      <button class="nav-btn" data-view="settings">系统设置</button>
     </div>
   </header>
 
-  <main class="wrap">
-    <div id="pageQa" class="page-section" role="tabpanel" aria-labelledby="tabQa">
-    <div class="grid-top qa-layout">
-      <section class="card">
-        <h2>检索 / 问答</h2>
-        <div class="body">
-          <div class="mode-tabs" role="tablist" aria-label="检索问答模式切换">
-            <button class="mode-tab active" id="qaModeAsk" type="button" data-qa-mode="ask" aria-selected="true">
-              Ask 问答
-              <small>适合直接提问题，系统整理答案并给出引用。</small>
-            </button>
-            <button class="mode-tab" id="qaModeSearch" type="button" data-qa-mode="search" aria-selected="false">
-              Search 检索
-              <small>适合先看原文证据，确认有没有搜对。</small>
-            </button>
+  <!-- View 1: Ask & Search -->
+  <div class="view-container" id="view-ask">
+    <div class="main-layout">
+      <!-- 栏1：书籍树 -->
+      <aside class="col-panel col-tree">
+        <div class="panel-header">检索范围 (目录)</div>
+        <div class="panel-body" id="tree-container">
+          <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">加载中...</div>
+        </div>
+      </aside>
+
+      <!-- 栏2：输入区 -->
+      <section class="col-panel col-input">
+        <div class="panel-header" style="border-bottom:none;padding-bottom:0;">
+          <div class="mode-switch">
+            <button id="mode-ask" class="active">深度问答 (Ask)</button>
+            <button id="mode-search">快速检索 (Search)</button>
           </div>
+        </div>
+        <div class="panel-body" style="padding-top:0;">
+          <textarea id="q" placeholder="输入你想查询的问题或关键词...
+例如：变压器有多少台？"></textarea>
 
-          <div id="qaModePanelAsk" class="mode-panel">
-            <p class="section-desc">适合直接提问题。系统会先检索相关片段，再给出整理后的答案；如果配置了 LLM，会尽量生成更自然的最终回答。</p>
-
-            <div class="row full">
-              <label>问题</label>
-              <div>
-                <textarea id="ask_q" placeholder="例如：Hull welding spec 用哪个 WPS？"></textarea>
-                <div class="hint">快捷键：Ctrl / ⌘ + Enter 可直接提交。</div>
+          <details class="advanced-settings">
+            <summary>高级检索参数</summary>
+            <div class="adv-grid">
+              <div class="adv-field">
+                <span>Top K (最大命中数)</span>
+                <input type="number" id="top_k" value="10" min="1" max="100">
+              </div>
+              <div class="adv-field" id="wrap-rerank">
+                <span>智能重排 (Rerank)</span>
+                <select id="rerank_flag">
+                  <option value="auto">系统默认</option>
+                  <option value="1">强制开启</option>
+                  <option value="0">强制关闭</option>
+                </select>
+              </div>
+              <div class="adv-field">
+                <span>书名/子串过滤</span>
+                <input type="text" id="f_book" placeholder="如：Spec">
+              </div>
+              <div class="adv-field">
+                <span>标签过滤 (逗号分隔)</span>
+                <input type="text" id="f_tags" placeholder="如：electrical">
+              </div>
+              <div class="adv-field">
+                <span>章节过滤</span>
+                <input type="text" id="f_chapter" placeholder="仅全文检索生效">
+              </div>
+              <div class="adv-field">
+                <span>页码定位</span>
+                <div style="display:flex;gap:4px;">
+                  <input type="number" id="f_page" placeholder="单页" style="width:40%;">
+                  <input type="text" id="f_pages" placeholder="范围(如:10-20)" style="width:60%;">
+                </div>
               </div>
             </div>
-            <div class="row">
-              <label>返回条数 top_k</label>
-              <input id="ask_topk" type="number" placeholder="8" value="8" />
+            <div style="margin-top:12px;" class="adv-field" id="wrap-llm-opt">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:500;">
+                <input type="checkbox" id="llm_enabled" checked>
+                启用 LLM (仅对 Ask 模式生效)
+              </label>
+              <small style="padding-left:22px;color:rgba(255,255,255,0.4);">取消勾选将仅返回经过降噪处理的纯检索结果。</small>
             </div>
-            <div class="row">
-              <label>按书名过滤</label>
-              <input id="ask_ft_title" type="text" placeholder="可选" />
-            </div>
-            <div class="row">
-              <label>按章节过滤</label>
-              <input id="ask_ft_chapter" type="text" placeholder="可选" />
-            </div>
-            <div class="row">
-              <label>起始页码</label>
-              <input id="ask_ft_ps" type="number" placeholder="可选" />
-            </div>
-            <div class="row">
-              <label>结束页码</label>
-              <input id="ask_ft_pe" type="number" placeholder="可选" />
-            </div>
-            <div class="row">
-              <label>领域标签</label>
-              <input id="ask_ft_tag" type="text" placeholder="可选，例如 welding" />
-            </div>
+          </details>
 
-            <details style="margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02);">
-              <summary style="cursor:pointer; padding: 12px 14px; color: var(--muted); font-size: 13px;">LLM 高级设置（可选）</summary>
-              <div style="padding: 0 14px 14px;">
-                <div class="hint">这里可以临时控制本次 Ask 是否启用 LLM、使用哪个模型、温度多少。API 地址和 Key 仍然走服务端配置，不在页面暴露。</div>
-                <div class="row">
-                  <label>启用 LLM</label>
-                  <input id="ask_llm_enabled" type="text" placeholder="留空=跟随服务端；可填 true / false" />
-                </div>
-                <div class="row">
-                  <label>模型名</label>
-                  <input id="ask_llm_model" type="text" placeholder="留空=跟随服务端，例如 qwen3-coder-flash" />
-                </div>
-                <div class="row">
-                  <label>温度</label>
-                  <input id="ask_llm_temp" type="number" step="0.1" placeholder="留空=跟随服务端，例如 0.2" />
-                </div>
-              </div>
-            </details>
-
-            <div class="actions">
-              <button id="btnAsk">提交问答</button>
-              <button class="secondary" id="btnAskClear">清空</button>
-            </div>
-          </div>
-
-          <div id="qaModePanelSearch" class="mode-panel" hidden>
-            <p class="section-desc">适合先看原文证据。检索结果会直接展示命中的片段，便于你判断资料有没有入对、搜对。</p>
-
-            <div class="row full">
-              <label>检索词</label>
-              <input id="sea_query" type="text" placeholder="例如：WPS-001 / sea trial / transformer capacity" />
-            </div>
-            <div class="row">
-              <label>返回条数 top_k</label>
-              <input id="sea_topk" type="number" placeholder="10" value="10" />
-            </div>
-            <div class="row">
-              <label>按书名过滤</label>
-              <input id="sea_ft_title" type="text" placeholder="可选" />
-            </div>
-            <div class="row">
-              <label>按章节过滤</label>
-              <input id="sea_ft_chapter" type="text" placeholder="可选" />
-            </div>
-            <div class="row">
-              <label>起始页码</label>
-              <input id="sea_ft_ps" type="number" placeholder="可选" />
-            </div>
-            <div class="row">
-              <label>结束页码</label>
-              <input id="sea_ft_pe" type="number" placeholder="可选" />
-            </div>
-            <div class="row">
-              <label>领域标签</label>
-              <input id="sea_ft_tag" type="text" placeholder="可选，例如 spec" />
-            </div>
-
-            <div class="actions">
-              <button id="btnSearch">执行检索</button>
-              <button class="secondary" id="btnSearchClear">清空</button>
-            </div>
-            <div class="hint">建议先用 Search 看原文，再决定是否用 Ask 让系统整理答案。</div>
-          </div>
+          <button id="btn-submit" class="primary">提交</button>
         </div>
       </section>
 
-      <section class="card result-card">
-        <h2>回答 / 结果</h2>
-        <div class="body">
-          <div class="result-shell">
-            <div id="qaResultEmpty" class="result-empty">左侧选择 Ask 或 Search 后提交，结果会显示在这里。这样输入区和结果区分开，不会互相挤压。</div>
-
-            <div id="askResultSection" class="result-section">
-              <div class="out" id="askOut" style="display:none; margin-top: 0;">
-                <div class="meta"><span id="askMeta"></span><span id="askTime"></span></div>
-                <div class="err" id="askErr" style="display:none;"></div>
-                <div style="padding: 12px;">
-                  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom: 10px;">
-                    <span style="font-size:12px; color: var(--muted);">回答</span>
-                    <span id="askModeBadge" class="badge" style="display:none;"></span>
-                    <span id="askLlmHint" class="hint" style="display:none; margin-top:0;"></span>
-                  </div>
-                  <pre id="askAnswer" style="font-size: 13px;"></pre>
-                  <div style="height: 10px;"></div>
-                  <div style="font-size:12px; color: var(--muted);">引用来源</div>
-                  <div id="askCitations"></div>
-                  <div style="height: 10px;"></div>
-                  <div style="font-size:12px; color: var(--muted);">相关片段</div>
-                  <div id="askSourcesWrap"></div>
-                </div>
-                <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
-                  <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
-                  <pre id="askPre"></pre>
-                </details>
-              </div>
-            </div>
-
-            <div id="searchResultSection" class="result-section">
-              <div class="out" id="searchOut" style="display:none; margin-top: 0;">
-                <div class="meta"><span id="searchMeta"></span><span id="searchTime"></span></div>
-                <div class="err" id="searchErr" style="display:none;"></div>
-                <div id="searchTableWrap"></div>
-                <details style="padding: 10px 12px; border-top: 1px solid var(--border);">
-                  <summary style="cursor:pointer; color: var(--muted); font-size: 12px;">查看原始 JSON</summary>
-                  <pre id="searchPre"></pre>
-                </details>
-              </div>
-            </div>
-          </div>
+      <!-- 栏3：结果区 -->
+      <section class="col-panel col-result">
+        <div class="panel-header" id="result-header">执行结果</div>
+        <div class="panel-body">
+          <div id="state-indicator">请输入问题以开始检索</div>
+          <div id="result-answer" class="answer-box markdown-body"></div>
+          <div id="result-sources"></div>
         </div>
       </section>
     </div>
-    </div>
+  </div>
 
-    <div id="pageLibrary" class="page-section" role="tabpanel" aria-labelledby="tabLibrary" hidden>
-    <div class="grid-bottom">
-      <section class="card">
-        <h2>书库管理</h2>
-        <div class="body">
-          <p class="section-desc">这里看当前已入库书籍、查看章节摘要，并支持删除整本资料。入库成功后会自动刷新列表。</p>
-
-          <div class="actions" style="margin-bottom: 12px;">
-            <button id="btnBooksRefresh" type="button">刷新书单</button>
-            <span class="hint" id="booksSummary">尚未加载书单。</span>
-          </div>
-
-          <div class="out" id="booksOut" style="display:block;">
-            <div class="meta"><span id="booksMeta">书单</span><span id="booksTime"></span></div>
-            <div class="err" id="booksErr" style="display:none;"></div>
-            <div id="booksListWrap" style="padding: 12px;"></div>
-          </div>
-
-          <div class="out" id="bookDetailOut" style="display:none; margin-top: 14px;">
-            <div class="meta"><span id="bookDetailMeta">书籍详情</span><span id="bookDetailTime"></span></div>
-            <div class="err" id="bookDetailErr" style="display:none;"></div>
-            <div style="padding: 12px;">
-              <div id="bookDetailWrap"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>资料入库（Ingest）</h2>
-        <div class="body">
-          <p class="section-desc">把新书或新文档写入知识库。注意这里填写的是 <strong>API 容器内可见路径</strong>，不是浏览器本地文件上传路径。</p>
-
-          <div class="row">
-            <label>文件路径 file_path</label>
-            <div>
-              <input id="ing_file" type="text" placeholder="/data/library/xxx.pdf" />
-              <div class="hint">常用写法：先把文件放到宿主机 <code>/home/kjxing/data/bookrag/library/</code>，再在这里填容器路径 <code>/data/library/文件名.pdf</code>。</div>
-            </div>
-          </div>
-          <div class="row">
-            <label>书名 title</label>
-            <input id="ing_title" type="text" placeholder="必填，例如 Hull Construction Guide" />
-          </div>
-          <div class="row">
-            <label>作者 author</label>
-            <input id="ing_author" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>版本 edition</label>
-            <input id="ing_edition" type="text" placeholder="可选" />
-          </div>
-          <div class="row">
-            <label>出版年份 publish_year</label>
-            <input id="ing_year" type="number" placeholder="可选，例如 2024" />
-          </div>
-          <div class="row">
-            <label>领域标签 domain_tags</label>
-            <input id="ing_tags" type="text" placeholder="可选，逗号分隔，例如 结构,焊接,规范" />
-          </div>
-
-          <div class="actions">
-            <button id="btnIngest">执行入库</button>
-            <button class="secondary" id="btnIngestClear">清空</button>
-          </div>
-
-          <div class="out" id="ingestOut" style="display:none;">
-            <div class="meta"><span id="ingestMeta"></span><span id="ingestTime"></span></div>
-            <div class="err" id="ingestErr" style="display:none;"></div>
-            <pre id="ingestPre"></pre>
-          </div>
-        </div>
-      </section>
-
-      <section class="card tips">
-        <h2>使用说明</h2>
-        <div class="body">
-          <p class="section-desc">下面这些点最容易踩坑，先看一遍能省不少时间。</p>
-          <ul>
-            <li>页面默认与当前 API 同源调用，通常直接打开 <code>http://127.0.0.1:18080/</code> 就能用。</li>
-            <li>如果 API 在别处运行，可在顶部填写“API 地址”，例如 <code>http://127.0.0.1:18080</code> 或 Tailscale 域名。</li>
-            <li>如果你是直接双击 HTML 用 <code>file://</code> 打开，浏览器通常会因为 CORS 拒绝请求；建议始终从 API 页面入口打开。</li>
-            <li>当前支持入库的文件类型主要是 <code>.txt</code>、<code>.md</code>、<code>.pdf</code>。</li>
-            <li>如果改了 embedding 模型，旧文档建议重新 ingest，避免向量空间混用。</li>
-            <li>如果给 <code>/ask</code> 配好了 LLM，回答模式会从 retrieval-only 提升为 LLM RAG；若 LLM 失效，会自动退回检索整理模式。</li>
-          </ul>
-          <div class="footer">前端文件：<code>app/static/index.html</code></div>
-        </div>
-      </section>
-    </div>
-    </div>
-  </main>
-
-  <div class="modal" id="detailModal" aria-hidden="true">
-    <div class="modal-backdrop" data-close="1"></div>
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
-      <div class="modal-head">
-        <div>
-          <div class="modal-title" id="detailTitle">详情</div>
-          <div class="modal-sub" id="detailSub"></div>
-          <div class="modal-meta" id="detailMeta"></div>
-        </div>
-        <div class="modal-actions">
-          <button class="secondary" id="detailCopy" type="button">复制</button>
-          <button class="secondary" id="detailClose" type="button">关闭</button>
-        </div>
+  <!-- View 2: Library -->
+  <div class="view-container" id="view-library" hidden>
+    <div class="form-pane" style="max-width: 800px; margin: 0 auto;">
+      <h2 style="margin-top:0;">入库新文档 <span style="font-size:14px;font-weight:normal;color:var(--muted);float:right;">支持 .pdf, .docx, .txt</span></h2>
+      <div class="form-group">
+        <label>服务器绝对路径 (Docker 容器内)</label>
+        <input type="text" id="ingest_path" placeholder="/data/library/example.pdf">
+        <small>仅支持容器内部可访问的路径访问。请先确保持卷已挂载。</small>
       </div>
-      <div class="modal-body">
-        <div class="detail-label">原文片段（支持 Markdown 渲染）</div>
-        <div class="modal-markdown" id="detailBody"></div>
+      <div class="form-group">
+        <label>自定义书名 (可选)</label>
+        <input type="text" id="ingest_title" placeholder="留空则自动提取文件名">
+      </div>
+      <button class="primary" id="btn-ingest" style="width:auto;">开始入库解析</button>
+    </div>
+
+    <div class="form-pane" style="max-width: 1000px; margin: 0 auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">已索引书库</h2>
+        <button class="primary btn-small secondary" onclick="loadBooks()">刷新列表</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th width="80">ID</th>
+              <th>书名 (Title)</th>
+              <th>文件路径</th>
+              <th width="100">切片数量</th>
+              <th width="150">入库时间</th>
+              <th width="80">操作</th>
+            </tr>
+          </thead>
+          <tbody id="lib-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--muted);">加载中...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 
-  <script>
-    const $ = (id) => document.getElementById(id);
-    let currentQaMode = "ask";
+  <!-- View 3: Settings -->
+  <div class="view-container" id="view-settings" hidden>
+    <div class="form-pane" style="margin: 0 auto;">
+      <h2 style="margin-top:0;margin-bottom:24px;">系统设置</h2>
+      
+      <div class="form-group">
+        <label>访问密码 (Access Password)</label>
+        <input type="password" id="set_pwd" placeholder="用于前端简单校验">
+        <small>系统基于无状态设计，此密码仅作为前端接口调用的附加保护（暂未实装后端强制中间件校验，填入可备未来升级）。</small>
+      </div>
 
-    function nowStr() {
-      const d = new Date();
-      return d.toLocaleString();
-    }
+      <hr style="border:0;border-top:1px solid var(--border);margin:24px 0;">
+      <h3 style="font-size:16px;margin: 0 0 16px 0;color:var(--accent);">LLM 大语言模型配置</h3>
 
-    function base() {
-      const raw = $("baseUrl").value.trim();
-      if (!raw) return "";
-      return raw.replace(/\/+$/, "");
-    }
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="set_llm_en"> 启用 LLM 分析 (关闭则 fallback 回纯检索)
+        </label>
+      </div>
 
-    function safeOrigin() {
-      try {
-        return window.location.origin || '';
-      } catch (_) {
-        return '';
-      }
-    }
+      <div class="form-group">
+        <label>Base URL (OpenAI API 兼容格式)</label>
+        <input type="text" id="set_base" placeholder="http://192.168.1.100:11434/v1">
+      </div>
 
-    async function api(path, options = {}) {
-      const url = `${base()}${path}`;
-      const res = await fetch(url, {
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-        ...options,
-      });
-      const text = await res.text();
-      let data;
-      try { data = text ? JSON.parse(text) : null; } catch (_) { data = text; }
-      if (!res.ok) {
-        const detail = typeof data === 'object' && data ? (data.detail || JSON.stringify(data)) : String(data || res.statusText);
-        throw new Error(`${res.status} ${res.statusText}: ${detail}`);
-      }
-      return data;
-    }
+      <div class="form-group">
+        <label>模型名称 (Model)</label>
+        <input type="text" id="set_model" placeholder="qwen2.5:14b">
+      </div>
 
-    function setHealth(ok, text) {
-      const dot = $("healthDot");
-      dot.classList.remove("ok", "bad");
-      if (ok === true) dot.classList.add("ok");
-      if (ok === false) dot.classList.add("bad");
-      $("healthText").textContent = text;
-    }
+      <div class="form-group">
+        <label>API Key (选填)</label>
+        <input type="password" id="set_api_key" placeholder="若使用 Ollama 留空即可">
+      </div>
 
-    async function refreshHealth() {
-      setHealth(null, "检查中...");
-      try {
-        const data = await api("/healthz", { method: "GET" });
-        setHealth(Boolean(data.ok), data.ok ? "正常" : "异常");
-      } catch (e) {
-        setHealth(false, "请求失败");
-      }
-    }
-
-    function parseFilters(prefix) {
-      const title = $(`${prefix}_ft_title`).value.trim();
-      const chapter = $(`${prefix}_ft_chapter`).value.trim();
-      const page_start = $(`${prefix}_ft_ps`).value.trim();
-      const page_end = $(`${prefix}_ft_pe`).value.trim();
-      const domain_tag = $(`${prefix}_ft_tag`).value.trim();
-      const filters = {};
-      if (title) filters.title = title;
-      if (chapter) filters.chapter = chapter;
-      if (page_start) filters.page_start = Number(page_start);
-      if (page_end) filters.page_end = Number(page_end);
-      if (domain_tag) filters.domain_tag = domain_tag;
-      return Object.keys(filters).length ? filters : null;
-    }
-
-    function asArray(value) {
-      if (Array.isArray(value)) return value;
-      if (!value) return [];
-      return [value];
-    }
-
-    function pickFirst(obj, keys = [], fallback = null) {
-      if (!obj || typeof obj !== "object") return fallback;
-      for (const key of keys) {
-        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
-      }
-      return fallback;
-    }
-
-    function normalizeHit(hit = {}) {
-      const pageStart = pickFirst(hit, ["page_start", "pageStart", "start_page"]);
-      const pageEnd = pickFirst(hit, ["page_end", "pageEnd", "end_page"]);
-      return {
-        ...hit,
-        chunk_id: pickFirst(hit, ["chunk_id", "chunkId", "id"], "-"),
-        book: pickFirst(hit, ["book", "title", "book_title", "source"], "未命名书籍"),
-        chapter: pickFirst(hit, ["chapter", "section", "heading"], null),
-        page_start: pageStart,
-        page_end: pageEnd,
-        chunk_text: pickFirst(hit, ["chunk_text", "text", "content", "snippet"], ""),
-        score: pickFirst(hit, ["score", "similarity", "rank_score"], null),
-      };
-    }
-
-    function normalizeCitation(citation = {}) {
-      return normalizeHit(citation);
-    }
-
-    function normalizeBook(book = {}) {
-      const filePath = pickFirst(book, ["file_path", "filePath", "path"], "");
-      const fileName = pickFirst(book, ["file_name", "fileName"], "");
-      const folder = pickFirst(book, ["folder", "dir", "directory"], "");
-      const domainTags = asArray(pickFirst(book, ["domain_tags", "domainTags", "tags"], []));
-      return {
-        ...book,
-        id: pickFirst(book, ["id", "book_id", "bookId"], "-"),
-        title: pickFirst(book, ["title", "book", "name"], "未命名书籍"),
-        author: pickFirst(book, ["author"], null),
-        edition: pickFirst(book, ["edition"], null),
-        publish_year: pickFirst(book, ["publish_year", "publishYear", "year"], null),
-        domain_tags: domainTags,
-        file_path: filePath,
-        file_name: fileName || (filePath ? filePath.split(/[/\\]/).pop() : ""),
-        folder: folder,
-        page_count: pickFirst(book, ["page_count", "pageCount", "pages"], null),
-        chunk_count: pickFirst(book, ["chunk_count", "chunkCount", "chunks"], 0),
-        created_at: pickFirst(book, ["created_at", "createdAt"], null),
-      };
-    }
-
-    function getSearchHits(data) {
-      return asArray(pickFirst(data, ["hits", "items", "results"], [])).map(normalizeHit);
-    }
-
-    function getAskCitations(data) {
-      return asArray(pickFirst(data, ["citations", "references", "refs"], [])).map(normalizeCitation);
-    }
-
-    function getAskSources(data) {
-      const sources = pickFirst(data, ["sources", "hits", "items", "results"], []);
-      return asArray(sources).map(normalizeHit);
-    }
-
-    function getBooks(data) {
-      return asArray(pickFirst(data, ["items", "books", "data"], [])).map(normalizeBook);
-    }
-
-    function getAskAnswer(data) {
-      return pickFirst(data, ["answer", "text", "result"], "");
-    }
-
-    function setAskStatus(data = null) {
-      const badge = $("askModeBadge");
-      const hint = $("askLlmHint");
-      if (!badge || !hint) return;
-      if (!data) {
-        badge.style.display = "none";
-        badge.textContent = "";
-        hint.style.display = "none";
-        hint.textContent = "";
-        return;
-      }
-
-      const mode = String(data.mode || "unknown");
-      badge.style.display = "inline-flex";
-      badge.textContent = `模式：${mode}`;
-
-      const llmError = data && data.debug ? data.debug.llm_error : null;
-      if (llmError) {
-        hint.style.display = "inline";
-        hint.textContent = `LLM 已回退：${llmError}`;
-      } else if (mode === "llm_rag") {
-        const model = data && data.debug ? data.debug.llm_model : "";
-        hint.style.display = "inline";
-        hint.textContent = model ? `LLM 已启用：${model}` : "LLM 已启用";
-      } else {
-        hint.style.display = "none";
-        hint.textContent = "";
-      }
-    }
-
-    function syncQaResultView(mode, hasResult = false) {
-      currentQaMode = mode === "search" ? "search" : "ask";
-      const askTab = $("qaModeAsk");
-      const searchTab = $("qaModeSearch");
-      const askPanel = $("qaModePanelAsk");
-      const searchPanel = $("qaModePanelSearch");
-      const askResult = $("askResultSection");
-      const searchResult = $("searchResultSection");
-      const empty = $("qaResultEmpty");
-
-      askTab.classList.toggle("active", currentQaMode === "ask");
-      searchTab.classList.toggle("active", currentQaMode === "search");
-      askTab.setAttribute("aria-selected", currentQaMode === "ask" ? "true" : "false");
-      searchTab.setAttribute("aria-selected", currentQaMode === "search" ? "true" : "false");
-      askPanel.hidden = currentQaMode !== "ask";
-      searchPanel.hidden = currentQaMode !== "search";
-      askResult.classList.toggle("active", currentQaMode === "ask");
-      searchResult.classList.toggle("active", currentQaMode === "search");
-
-      const activeOut = currentQaMode === "ask" ? $("askOut") : $("searchOut");
-      const hasVisibleResult = hasResult || (activeOut && activeOut.style.display !== "none");
-      empty.style.display = hasVisibleResult ? "none" : "block";
-    }
-
-    function showBox(prefix, meta, payload, err = null) {
-      $(`${prefix}Out`).style.display = "block";
-      $(`${prefix}Meta`).textContent = meta;
-      $(`${prefix}Time`).textContent = nowStr();
-      const errEl = $(`${prefix}Err`);
-      if (err) {
-        errEl.style.display = "block";
-        errEl.textContent = String(err);
-      } else {
-        errEl.style.display = "none";
-        errEl.textContent = "";
-      }
-      const pre = document.getElementById(`${prefix}Pre`);
-      if (pre) pre.textContent = JSON.stringify(payload, null, 2);
-      if (prefix === "ask" || prefix === "search") {
-        syncQaResultView(prefix === "ask" ? "ask" : "search", true);
-      }
-    }
-
-    function clearBox(prefix) {
-      $(`${prefix}Out`).style.display = "none";
-      const errEl = $(`${prefix}Err`);
-      if (errEl) {
-        errEl.style.display = "none";
-        errEl.textContent = "";
-      }
-      const pre = document.getElementById(`${prefix}Pre`);
-      if (pre) pre.textContent = "";
-      if (prefix === "ask" || prefix === "search") {
-        const activeOut = currentQaMode === "ask" ? $("askOut") : $("searchOut");
-        $("qaResultEmpty").style.display = activeOut && activeOut.style.display !== "none" ? "none" : "block";
-      }
-    }
-
-    function formatDateTime(value) {
-      if (!value) return "";
-      try {
-        return new Date(value).toLocaleString();
-      } catch (_) {
-        return String(value);
-      }
-    }
-
-    function renderBookTags(tags = []) {
-      if (!tags.length) return '<span class="hint">无标签</span>';
-      return tags.map((tag) => `<span class="badge">${escapeHtml(tag)}</span>`).join(" ");
-    }
-
-    function showBookDetailError(message, keepVisible = true) {
-      const out = $("bookDetailOut");
-      const errEl = $("bookDetailErr");
-      $("bookDetailWrap").innerHTML = "";
-      $("bookDetailMeta").textContent = "书籍详情";
-      $("bookDetailTime").textContent = nowStr();
-      errEl.style.display = "block";
-      errEl.textContent = String(message || "加载失败");
-      out.style.display = keepVisible ? "block" : "none";
-    }
-
-    function renderBookDetail(data) {
-      const out = $("bookDetailOut");
-      const errEl = $("bookDetailErr");
-      const wrap = $("bookDetailWrap");
-      errEl.style.display = "none";
-      errEl.textContent = "";
-      $("bookDetailMeta").textContent = `书籍详情 · #${data.id}`;
-      $("bookDetailTime").textContent = nowStr();
-
-      const chapters = (data.chapters || []).map((item, idx) => {
-        const loc = [];
-        if (item.chapter) loc.push(item.chapter);
-        if (item.section) loc.push(item.section);
-        if (item.page_start !== null || item.page_end !== null) loc.push(`页码 ${item.page_start ?? "?"}-${item.page_end ?? "?"}`);
-        loc.push(`chunk=${item.chunk_count ?? 0}`);
-        return `
-          <div class="hit-card">
-            <div class="hit-head">
-              <div>
-                <div class="hit-title">${idx + 1}. ${escapeHtml(item.chapter || item.section || "未命名章节")}</div>
-                <div class="hit-sub">${escapeHtml(loc.join(" · "))}</div>
-              </div>
-            </div>
-            <div class="hit-body">
-              <pre class="hit-snippet">${escapeHtml(item.summary || "")}</pre>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      wrap.innerHTML = `
-        <div style="display:grid; gap:12px;">
-          <div>
-            <div class="hit-title">${escapeHtml(data.title || "未命名书籍")}</div>
-            <div class="hint">作者：${escapeHtml(data.author || "-")} · 版本：${escapeHtml(data.edition || "-")} · 年份：${escapeHtml(data.publish_year ?? "-")}</div>
-          </div>
-          <div class="hint">路径：<code>${escapeHtml(data.file_path || "")}</code></div>
-          <div class="hint">文件名：${escapeHtml(data.file_name || "-")} · 文件夹：${escapeHtml(data.folder || "-")}</div>
-          <div class="hint">页数：${escapeHtml(data.page_count ?? "-")} · chunk 数：${escapeHtml(data.chunk_count ?? 0)} · 创建时间：${escapeHtml(formatDateTime(data.created_at) || "-")}</div>
-          <div>${renderBookTags(data.domain_tags || [])}</div>
-          <div>
-            <div style="font-size:12px; color: var(--muted); margin-bottom: 8px;">章节摘要</div>
-            ${chapters || '<div class="hint">暂无章节摘要。</div>'}
-          </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label>Temperature (温度)</label>
+          <input type="number" id="set_temp" step="0.1" value="0.2" min="0" max="2">
         </div>
-      `;
-      out.style.display = "block";
+        <div class="form-group">
+          <label>API 超时 (Req Timeout) 秒</label>
+          <input type="number" id="set_timeout" value="60" min="10">
+        </div>
+      </div>
+
+      <div style="margin-top:24px;">
+        <button class="primary" id="btn-save-settings">保存系统配置</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+  let currentMode = "ask"; // "ask" | "search"
+  let cachedScopeOptions = { folders: [], files: [] };
+
+  // --- Utility & Toast ---
+  function showToast(msg, isError = false) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.style.borderLeft = isError ? "4px solid var(--bad)" : "4px solid var(--ok)";
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 3000);
+  }
+
+  // --- Router / Nav ---
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const view = btn.dataset.view;
+      document.querySelectorAll('.view-container').forEach(v => v.hidden = true);
+      document.getElementById(`view-${view}`).hidden = false;
+
+      if (view === 'library') loadBooks();
+      if (view === 'settings') loadSettings();
+      if (view === 'ask' && cachedScopeOptions.files.length === 0) loadScopeOptions();
+      
+      // Update URL silently
+      window.history.replaceState(null, '', `/${view === 'ask' ? '' : view}`);
+    });
+  });
+
+  // Client router init
+  if (window.location.pathname.includes('/library')) {
+    document.querySelector('.nav-btn[data-view="library"]').click();
+  } else if (window.location.pathname.includes('/settings')) {
+    document.querySelector('.nav-btn[data-view="settings"]').click();
+  } else {
+    loadScopeOptions(); // default ask
+  }
+
+  // --- Mode Toggle (Ask / Search) ---
+  document.getElementById("mode-ask").addEventListener("click", () => setMode("ask"));
+  document.getElementById("mode-search").addEventListener("click", () => setMode("search"));
+
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById("mode-ask").classList.toggle("active", mode === "ask");
+    document.getElementById("mode-search").classList.toggle("active", mode === "search");
+    
+    document.getElementById("wrap-rerank").style.display = mode === "ask" ? "block" : "none";
+    document.getElementById("wrap-llm-opt").style.display = mode === "ask" ? "block" : "none";
+    
+    document.getElementById("btn-submit").textContent = mode === "ask" ? "提交 Ask" : "提交 Search";
+  }
+
+  // --- Initializers ---
+  async function checkHealth() {
+    try {
+      const res = await fetch("/healthz");
+      const data = await res.json();
+      const dot = document.getElementById("db-status");
+      if (data.ok) {
+        dot.className = "status-dot ok";
+        dot.title = "系统正常连线";
+      } else {
+        dot.className = "status-dot bad";
+        dot.title = "数据库异常";
+      }
+    } catch (e) {
+      document.getElementById("db-status").className = "status-dot bad";
+    }
+  }
+  checkHealth();
+
+  // --- Left Panel: Book Tree ---
+  async function loadScopeOptions() {
+    try {
+      const res = await fetch("/api/scope-options");
+      if (!res.ok) throw new Error("获取目录失败");
+      cachedScopeOptions = await res.json();
+      renderTree();
+    } catch (e) {
+      document.getElementById("tree-container").innerHTML = `<div style="color:var(--bad);padding:10px;">${e.message}</div>`;
+    }
+  }
+
+  function renderTree() {
+    const container = document.getElementById("tree-container");
+    container.innerHTML = "";
+    
+    if (cachedScopeOptions.files.length === 0) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:10px;">暂无书籍记录，请先去书库模块入库文档。</div>';
+      return;
     }
 
-    function renderBooksList(items = []) {
-      const wrap = $("booksListWrap");
-      const books = asArray(items).map(normalizeBook);
-      if (!books.length) {
-        wrap.innerHTML = '<div class="hint">书库里还没有资料。</div>';
+    const map = {};
+    // Group by folder
+    for (const f of cachedScopeOptions.folders) map[f] = [];
+    for (const f of cachedScopeOptions.files) {
+      let folderMatch = cachedScopeOptions.folders.find(fd => f.file_path.startsWith(fd));
+      let key = folderMatch || ".";
+      if (!map[key]) map[key] = [];
+      map[key].push(f);
+    }
+
+    // Build DOM
+    for (const [folder, files] of Object.entries(map)) {
+      if (!files.length) continue;
+      const folderDiv = document.createElement("div");
+      folderDiv.className = "tree-folder";
+      
+      const title = document.createElement("div");
+      title.className = "tree-folder-name";
+      title.textContent = folder;
+      
+      const fileList = document.createElement("div");
+      fileList.className = "tree-files";
+
+      files.forEach(file => {
+        const lbl = document.createElement("label");
+        lbl.className = "tree-file-label";
+        lbl.innerHTML = `<input type="checkbox" value="${file.book_id}" class="book-cb"> <div class="tree-file-name" title="${file.file_path}">${file.title}</div>`;
+        fileList.appendChild(lbl);
+      });
+
+      title.onclick = () => {
+        title.classList.toggle('collapsed');
+        fileList.classList.toggle('collapsed');
+      };
+
+      folderDiv.appendChild(title);
+      folderDiv.appendChild(fileList);
+      container.appendChild(folderDiv);
+    }
+  }
+
+  function getSelectedBookIds() {
+    const checks = document.querySelectorAll('.book-cb:checked');
+    return Array.from(checks).map(c => parseInt(c.value));
+  }
+
+  // --- Main Query Logic (Middle & Right Panels) ---
+  function highlightText(text, tokens) {
+    if (!tokens || !tokens.length) return escapeHtml(text);
+    let escaped = escapeHtml(text);
+    tokens.forEach(tok => {
+      if(tok.length < 2) return;
+      // 简单高亮实现：不区分大小写的替换
+      const regex = new (window.RegExp)(escapeRegex(tok), 'gi');
+      escaped = escaped.replace(regex, match => `<mark>${match}</mark>`);
+    });
+    return escaped;
+  }
+  function escapeRegex(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function escapeHtml(str) { return document.createElement('div').appendChild(document.createTextNode(str)).parentNode.innerHTML; }
+
+  document.getElementById("btn-submit").addEventListener("click", async () => {
+    const q = document.getElementById("q").value.trim();
+    if (!q) return showToast("请输入查询内容", true);
+
+    const btn = document.getElementById("btn-submit");
+    const indicator = document.getElementById("state-indicator");
+    const resultBox = document.getElementById("result-sources");
+    const ansBox = document.getElementById("result-answer");
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loader"></span> 正在计算...';
+    indicator.style.display = 'block';
+    indicator.textContent = '检索与分析中，请稍候...';
+    resultBox.innerHTML = '';
+    ansBox.style.display = 'none';
+
+    try {
+      const topk = parseInt(document.getElementById("top_k").value) || 10;
+      const fBook = document.getElementById("f_book").value.trim();
+      const fTags = document.getElementById("f_tags").value.split(',').map(x=>x.trim()).filter(x=>x);
+      const fChp = document.getElementById("f_chapter").value.trim();
+      
+      let pStart = null, pEnd = null;
+      if (document.getElementById("f_page").value) {
+        pStart = parseInt(document.getElementById("f_page").value); pEnd = pStart;
+      }
+      const pRng = document.getElementById("f_pages").value.trim();
+      if (pRng && pRng.includes('-')) {
+        const pts = pRng.split('-'); pStart = parseInt(pts[0]); pEnd = parseInt(pts[1]);
+      }
+
+      const selectedIds = getSelectedBookIds();
+
+      const payload = {
+        question: q, query: q, top_k: topk,
+        filters: {
+          book_title: fBook || null,
+          chapter: fChp || null,
+          page_start: pStart,
+          page_end: pEnd,
+          tags: fTags.length ? fTags : null,
+          selected_book_ids: selectedIds.length ? selectedIds : null
+        }
+      };
+
+      let endpoint = "/search";
+      if (currentMode === "ask") {
+        endpoint = "/ask";
+        payload.question = q;
+        payload.llm_enabled = document.getElementById("llm_enabled").checked;
+        const rr = document.getElementById("rerank_flag").value;
+        if (rr !== "auto") payload.rerank = (rr === "1");
+      }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        let err = "请求失败";
+        try { err = (await res.json()).detail || err; } catch(e){}
+        throw new Error(err);
+      }
+      
+      const data = await res.json();
+      indicator.style.display = 'none';
+
+      // Render Answer (for ask only)
+      if (currentMode === "ask" && data.answer) {
+        ansBox.style.display = 'block';
+        ansBox.innerHTML = window.marked.parse(data.answer);
+      }
+
+      // Render Sources
+      const hits = currentMode === "ask" ? data.sources : data.hits;
+      const terms = data.debug && data.debug.retrieval && data.debug.retrieval.per_query 
+                    ? data.debug.retrieval.per_query[0]?.keyword_terms : [];
+      
+      if (!hits || !hits.length) {
+        resultBox.innerHTML = '<div class="result-empty">未匹配到任何结果，请尝试简化关键词或扩大检索范围。</div>';
         return;
       }
 
-      wrap.innerHTML = `
-        <div class="search-list">${books.map((book, idx) => {
-          const meta = [
-            `作者 ${book.author || '-'}`,
-            `年份 ${book.publish_year ?? '-'}`,
-            `chunk ${book.chunk_count ?? 0}`,
-            `页数 ${book.page_count ?? '-'}`,
-          ].join(' · ');
-          return `
-            <div class="hit-card">
-              <div class="hit-head">
-                <div>
-                  <div class="hit-title">${idx + 1}. ${escapeHtml(book.title || '未命名书籍')}</div>
-                  <div class="hit-sub">#${book.id} · ${escapeHtml(meta)}</div>
-                </div>
-                <div class="hit-head-right" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-                  <button class="secondary" type="button" data-book-detail="${book.id}">查看详情</button>
-                  <button class="secondary" type="button" data-book-delete="${book.id}" data-book-title="${escapeHtml(book.title || '')}">删除</button>
-                </div>
-              </div>
-              <div class="hit-body">
-                <div class="hit-meta-line">
-                  <span class="badge">${escapeHtml(book.file_name || '未命名文件')}</span>
-                  ${renderBookTags(book.domain_tags || [])}
-                </div>
-                <pre class="hit-snippet">${escapeHtml(book.file_path || '')}</pre>
-              </div>
-            </div>
-          `;
-        }).join('')}</div>
-      `;
-    }
-
-    async function loadBooks(options = {}) {
-      const { focus = false } = options;
-      $("booksTime").textContent = nowStr();
-      $("booksMeta").textContent = "书单加载中...";
-      $("booksErr").style.display = "none";
-      $("booksErr").textContent = "";
-      $("booksSummary").textContent = "正在请求 /books ...";
-      try {
-        const data = await api("/books?limit=200&offset=0", { method: "GET" });
-        const items = getBooks(data);
-        renderBooksList(items);
-        $("booksMeta").textContent = `书单 · total=${data.total ?? items.length}`;
-        $("booksSummary").textContent = `已加载 ${items.length} 本资料。`;
-        if (focus && items.length) {
-          $("booksListWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+      hits.forEach((hit, i) => {
+        const card = document.createElement("div");
+        card.className = "hit-card";
+        
+        let header = `<div class="hit-header">
+          <div class="hit-title">`;
+        
+        if (hit.chapter) header += `<div>${escapeHtml(hit.chapter)}</div>`;
+        header += `<small>《${escapeHtml(hit.book)}》`;
+        if (hit.page_start || hit.page_end) {
+          header += ` · 页码: ${hit.page_start||'?'}-${hit.page_end||'?'}`;
         }
-      } catch (e) {
-        $("booksErr").style.display = "block";
-        $("booksErr").textContent = e.message || String(e);
-        $("booksMeta").textContent = "书单加载失败";
-        $("booksSummary").textContent = "调用 /books 失败。";
-        $("booksListWrap").innerHTML = "";
-      }
+        header += `</small></div>
+          <div class="hit-score">#${i+1} | Score: ${(hit.score||0).toFixed(4)}</div>
+        </div>`;
+
+        const highlighted = highlightText(hit.chunk_text, terms);
+        card.innerHTML = header + `<div class="hit-text">${highlighted}</div>`;
+        resultBox.appendChild(card);
+      });
+
+    } catch(e) {
+      indicator.innerHTML = `<span style="color:var(--bad)">错误: ${e.message}</span>`;
+      showToast(e.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = currentMode === "ask" ? "提交 Ask" : "提交 Search";
     }
+  });
 
-    async function loadBookDetail(bookId) {
-      showBookDetailError("详情加载中...", true);
-      try {
-        const data = await api(`/books/${bookId}`, { method: "GET" });
-        renderBookDetail(data);
-      } catch (e) {
-        showBookDetailError(e.message || String(e), true);
-      }
+  // --- Settings View Logic ---
+  async function loadSettings() {
+    try {
+      const res = await fetch("/api/settings");
+      const data = await res.json();
+      document.getElementById("set_pwd").value = data.access_password || "";
+      document.getElementById("set_llm_en").checked = data.llm_enabled;
+      document.getElementById("set_base").value = data.llm_base_url || "";
+      document.getElementById("set_model").value = data.llm_model || "";
+      document.getElementById("set_api_key").value = data.llm_api_key || "";
+      document.getElementById("set_temp").value = data.llm_temperature || 0.2;
+      document.getElementById("set_timeout").value = data.llm_timeout || 60;
+    } catch(e) {
+      showToast("加载配置失败: " + e.message, true);
     }
+  }
 
-    async function deleteBook(bookId, title = "") {
-      const name = title || `#${bookId}`;
-      if (!window.confirm(`确定删除《${name}》吗？这会删除该书及其 chunks。`)) return;
-      try {
-        const data = await api(`/books/${bookId}`, { method: "DELETE" });
-        $("booksSummary").textContent = `已删除《${data.title || name}》 · chunk=${data.chunk_count ?? 0}`;
-        $("bookDetailOut").style.display = "none";
-        await loadBooks();
-      } catch (e) {
-        $("booksErr").style.display = "block";
-        $("booksErr").textContent = e.message || String(e);
-      }
-    }
-
-    const hitStore = new Map();
-    let hitSeq = 0;
-    let detailCopyText = "";
-
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-    }
-
-    function renderInline(text) {
-      let s = escapeHtml(text);
-      s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
-      s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-      s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-      s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-      return s;
-    }
-
-    function renderMarkdown(md) {
-      const lines = String(md ?? "").replace(/\r\n/g, "\n").split("\n");
-      const html = [];
-      let inCode = false;
-      let codeLines = [];
-      let listType = null;
-      let listItems = [];
-      let paragraph = [];
-
-      const flushParagraph = () => {
-        if (!paragraph.length) return;
-        html.push(`<p>${renderInline(paragraph.join(" "))}</p>`);
-        paragraph = [];
+  document.getElementById("btn-save-settings").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-save-settings");
+    btn.disabled = true; btn.textContent = "保存中...";
+    try {
+      const p = {
+        access_password: document.getElementById("set_pwd").value,
+        llm_enabled: document.getElementById("set_llm_en").checked,
+        llm_base_url: document.getElementById("set_base").value,
+        llm_model: document.getElementById("set_model").value,
+        llm_api_key: document.getElementById("set_api_key").value,
+        llm_temperature: parseFloat(document.getElementById("set_temp").value),
+        llm_timeout: parseFloat(document.getElementById("set_timeout").value)
       };
-      const flushList = () => {
-        if (!listType) return;
-        html.push(`<${listType}>${listItems.join("")}</${listType}>`);
-        listType = null;
-        listItems = [];
-      };
-
-      for (const rawLine of lines) {
-        const line = rawLine.replace(/\t/g, "    ");
-        if (line.trim().startsWith("```")) {
-          if (inCode) {
-            html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
-            inCode = false;
-            codeLines = [];
-          } else {
-            flushParagraph();
-            flushList();
-            inCode = true;
-          }
-          continue;
-        }
-        if (inCode) {
-          codeLines.push(line);
-          continue;
-        }
-
-        if (!line.trim()) {
-          flushParagraph();
-          flushList();
-          continue;
-        }
-
-        const heading = line.match(/^(#{1,6})\s+(.*)$/);
-        if (heading) {
-          flushParagraph();
-          flushList();
-          const level = heading[1].length;
-          html.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
-          continue;
-        }
-
-        const quote = line.match(/^>\s+(.*)$/);
-        if (quote) {
-          flushParagraph();
-          flushList();
-          html.push(`<blockquote>${renderInline(quote[1])}</blockquote>`);
-          continue;
-        }
-
-        const ordered = line.match(/^\d+\.\s+(.*)$/);
-        if (ordered) {
-          flushParagraph();
-          if (listType && listType !== "ol") flushList();
-          listType = "ol";
-          listItems.push(`<li>${renderInline(ordered[1])}</li>`);
-          continue;
-        }
-
-        const unordered = line.match(/^[-*]\s+(.*)$/);
-        if (unordered) {
-          flushParagraph();
-          if (listType && listType !== "ul") flushList();
-          listType = "ul";
-          listItems.push(`<li>${renderInline(unordered[1])}</li>`);
-          continue;
-        }
-
-        if (listType) flushList();
-        paragraph.push(line.trim());
-      }
-
-      if (inCode) {
-        html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
-      }
-      flushParagraph();
-      flushList();
-      return html.join("");
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(p)
+      });
+      if (!res.ok) throw new Error("保存失败");
+      showToast("设置已保存并生效。");
+      loadSettings(); // re-fetch to see masked keys
+    } catch(e) {
+      showToast(e.message, true);
+    } finally {
+      btn.disabled = false; btn.textContent = "保存系统配置";
     }
+  });
 
-    function storeHit(hit) {
-      const id = `hit-${++hitSeq}`;
-      hitStore.set(id, hit);
-      return id;
+  // --- Library logic (Briefly ported) ---
+  document.getElementById("btn-ingest").addEventListener("click", async () => {
+    const path = document.getElementById("ingest_path").value.trim();
+    if (!path) return showToast("请输入文件路径", true);
+    const btn = document.getElementById("btn-ingest");
+    btn.disabled = true; btn.textContent = "解析入库中...";
+    try {
+      const res = await fetch("/ingest", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ file_path: path, title: document.getElementById("ingest_title").value.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "入库失败");
+      showToast(`入库成功，书籍ID: ${data.book_id}`);
+      document.getElementById("ingest_path").value = "";
+      document.getElementById("ingest_title").value = "";
+      loadBooks();
+      cachedScopeOptions = {folders:[], files:[]}; // invalidate scope cache
+    } catch (e) {
+      showToast(e.message, true);
+    } finally {
+       btn.disabled = false; btn.textContent = "开始入库解析";
     }
+  });
 
-    function buildHitCard(hit, idx, options = {}) {
-      const normalized = normalizeHit(hit);
-      const id = storeHit(normalized);
-      const loc = [];
-      if (normalized.chapter) loc.push(`章节：${normalized.chapter}`);
-      if (normalized.page_start !== null || normalized.page_end !== null) loc.push(`页码 ${normalized.page_start ?? "?"}-${normalized.page_end ?? "?"}`);
-      const meta = loc.map(v => `<span class="badge">${escapeHtml(v)}</span>`).join(" ");
-      const snippet = escapeHtml(String(normalized.chunk_text || ""));
-      const extraBadge = options.badge ? `<span class="badge">${escapeHtml(options.badge)}</span>` : "";
-      const scoreText = normalized.score === null || normalized.score === undefined ? "-" : Number(normalized.score).toFixed(3);
-      return `
-          <div class="hit-card clickable" data-hit-id="${id}" role="button" tabindex="0">
-            <div class="hit-head">
-              <div>
-                <div class="hit-title">${idx + 1}. ${escapeHtml(normalized.book || "未命名书籍")}</div>
-                <div class="source-path">
-                  ${meta || '<span class="badge">章节：未标注</span>'}
-                </div>
-                <div class="hit-sub">chunk_id=${normalized.chunk_id} · score=${scoreText}</div>
-              </div>
-              <div class="hit-head-right">
-                <button class="secondary hit-open" data-hit-id="${id}" type="button">查看详情</button>
-              </div>
-            </div>
-            <div class="hit-body">
-              <div class="hit-meta-line">
-                <span class="badge">原文片段</span>
-                ${extraBadge}
-              </div>
-              <pre class="hit-snippet">${snippet}</pre>
-            </div>
-          </div>
+  async function loadBooks() {
+    const tb = document.getElementById("lib-tbody");
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;">加载中...</td></tr>';
+    try {
+      const res = await fetch("/books?limit=100");
+      const data = await res.json();
+      tb.innerHTML = "";
+      if (!data.items || data.items.length === 0) {
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;">书库为空</td></tr>';
+        return;
+      }
+      data.items.forEach(b => {
+        const tr = document.createElement("tr");
+        const dt = new Date(b.created_at).toLocaleString('zh-CN', {hour12: false});
+        tr.innerHTML = `
+          <td>${b.id}</td>
+          <td style="font-weight:600;color:var(--text);">${escapeHtml(b.title||'-')}</td>
+          <td style="color:var(--muted);font-size:13px;word-break:break-all;">${escapeHtml(b.file_path)}</td>
+          <td>${b.chunk_count||0}</td>
+          <td style="font-size:13px;color:var(--muted);">${dt}</td>
+          <td><button class="btn-small btn-danger" onclick="delBook(${b.id})">删除</button></td>
         `;
-    }
-
-    function renderCitations(citations = []) {
-      const wrap = $("askCitations");
-      const rowsData = asArray(citations).map(normalizeCitation);
-      wrap.innerHTML = "";
-      if (!rowsData.length) {
-        wrap.innerHTML = '<div class="hint">暂无引用。</div>';
-        return;
-      }
-      const rows = rowsData.map((citation, idx) => buildHitCard(citation, idx, { badge: `引用 [${idx + 1}]` })).join("");
-      wrap.innerHTML = `<div class="search-list">${rows}</div>`;
-    }
-
-    function renderSearchHits(hits = []) {
-      const wrap = $("searchTableWrap");
-      const rowsData = asArray(hits).map(normalizeHit);
-      if (!rowsData.length) {
-        wrap.innerHTML = '<div style="padding:12px; color: var(--muted); font-size: 13px;">没有命中结果。</div>';
-        return;
-      }
-
-      const rows = rowsData.map((hit, idx) => buildHitCard(hit, idx)).join("");
-
-      wrap.innerHTML = `<div class="search-list">${rows}</div>`;
-    }
-
-    function renderAskSources(hits = []) {
-      const wrap = $("askSourcesWrap");
-      if (!wrap) return;
-      const rowsData = asArray(hits).map(normalizeHit);
-      if (!rowsData.length) {
-        wrap.innerHTML = '<div class="hint">暂无相关片段。</div>';
-        return;
-      }
-      const rows = rowsData.map((hit, idx) => buildHitCard(hit, idx, { badge: "来自 Ask" })).join("");
-      wrap.innerHTML = `<div class="search-list">${rows}</div>`;
-    }
-
-    function openDetail(hit) {
-      if (!hit) return;
-      $("detailTitle").textContent = hit.book || "未命名书籍";
-      const sub = [];
-      if (hit.chapter) sub.push(`章节：${hit.chapter}`);
-      if (hit.score !== null && hit.score !== undefined) sub.push(`score=${Number(hit.score).toFixed(3)}`);
-      sub.push(`chunk_id=${hit.chunk_id}`);
-      $("detailSub").textContent = sub.join(" · ");
-      const meta = [];
-      if (hit.chapter) meta.push(`<span class="badge">章节：${escapeHtml(hit.chapter)}</span>`);
-      if (hit.page_start !== null || hit.page_end !== null) meta.push(`<span class="badge">页码 ${hit.page_start ?? "?"}-${hit.page_end ?? "?"}</span>`);
-      $("detailMeta").innerHTML = meta.join(" ");
-
-      const body = String(hit.chunk_text || "");
-      detailCopyText = body;
-      $("detailCopy").disabled = !body;
-      $("detailBody").innerHTML = body ? renderMarkdown(body) : '<div class="hint">暂无原文片段。</div>';
-
-      const modal = $("detailModal");
-      modal.classList.add("active");
-      modal.setAttribute("aria-hidden", "false");
-      document.body.classList.add("modal-open");
-    }
-
-    function closeDetail() {
-      const modal = $("detailModal");
-      modal.classList.remove("active");
-      modal.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("modal-open");
-      detailCopyText = "";
-    }
-
-    function openDetailById(id) {
-      if (!id) return;
-      const hit = hitStore.get(id);
-      if (!hit) return;
-      openDetail(hit);
-    }
-
-    async function copyDetail() {
-      if (!detailCopyText) return;
-      const btn = $("detailCopy");
-      const original = btn.textContent;
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(detailCopyText);
-        } else {
-          const ta = document.createElement("textarea");
-          ta.value = detailCopyText;
-          ta.style.position = "fixed";
-          ta.style.left = "-9999px";
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          document.execCommand("copy");
-          document.body.removeChild(ta);
-        }
-        btn.textContent = "已复制";
-        setTimeout(() => { btn.textContent = original; }, 1200);
-      } catch (_) {
-        btn.textContent = "复制失败";
-        setTimeout(() => { btn.textContent = original; }, 1200);
-      }
-    }
-
-    async function doIngest() {
-      const payload = {
-        file_path: $("ing_file").value.trim(),
-        title: $("ing_title").value.trim(),
-        author: $("ing_author").value.trim() || null,
-        edition: $("ing_edition").value.trim() || null,
-        publish_year: $("ing_year").value.trim() ? Number($("ing_year").value.trim()) : null,
-        domain_tags: $("ing_tags").value.trim() ? $("ing_tags").value.split(',').map(s => s.trim()).filter(Boolean) : [],
-      };
-      try {
-        const data = await api("/ingest", { method: "POST", body: JSON.stringify(payload) });
-        showBox("ingest", `入库成功 · chunk_count=${data.chunk_count ?? '?'} · book_id=${data.book_id ?? '?'}`, data);
-        await loadBooks();
-        if (data.book_id) await loadBookDetail(data.book_id);
-      } catch (e) {
-        showBox("ingest", "入库失败", payload, e.message || String(e));
-      }
-    }
-
-    async function doSearch() {
-      syncQaResultView("search");
-      const payload = {
-        query: $("sea_query").value.trim(),
-        top_k: Number($("sea_topk").value || 10),
-      };
-      const filters = parseFilters("sea");
-      if (filters) payload.filters = filters;
-      try {
-        const data = await api("/search", { method: "POST", body: JSON.stringify(payload) });
-        const hits = getSearchHits(data);
-        showBox("search", `检索完成 · hits=${hits.length}`, data);
-        renderSearchHits(hits);
-      } catch (e) {
-        showBox("search", "检索失败", payload, e.message || String(e));
-        $("searchTableWrap").innerHTML = "";
-      }
-    }
-
-    async function doAsk() {
-      syncQaResultView("ask");
-      const payload = {
-        question: $("ask_q").value.trim(),
-        top_k: Number($("ask_topk").value || 8),
-      };
-      const filters = parseFilters("ask");
-      if (filters) payload.filters = filters;
-
-      const llmEnabledRaw = $("ask_llm_enabled").value.trim().toLowerCase();
-      const llmModelRaw = $("ask_llm_model").value.trim();
-      const llmTempRaw = $("ask_llm_temp").value.trim();
-      if (llmEnabledRaw === "true") payload.llm_enabled = true;
-      if (llmEnabledRaw === "false") payload.llm_enabled = false;
-      if (llmModelRaw) payload.llm_model = llmModelRaw;
-      if (llmTempRaw) payload.llm_temperature = Number(llmTempRaw);
-
-      try {
-        const data = await api("/ask", { method: "POST", body: JSON.stringify(payload) });
-        const citations = getAskCitations(data);
-        const sources = getAskSources(data);
-        showBox("ask", `问答完成 · mode=${data.mode || 'unknown'} · citations=${citations.length}`, data);
-        setAskStatus(data);
-        $("askAnswer").textContent = getAskAnswer(data);
-        renderCitations(citations);
-        renderAskSources(sources);
-      } catch (e) {
-        showBox("ask", "问答失败", payload, e.message || String(e));
-        setAskStatus(null);
-        $("askAnswer").textContent = "";
-        renderCitations([]);
-        renderAskSources([]);
-      }
-    }
-
-    function clearIngest() {
-      ["ing_file", "ing_title", "ing_author", "ing_edition", "ing_year", "ing_tags"].forEach(id => $(id).value = "");
-      clearBox("ingest");
-    }
-    function clearSearch() {
-      ["sea_query", "sea_topk", "sea_ft_title", "sea_ft_chapter", "sea_ft_ps", "sea_ft_pe", "sea_ft_tag"].forEach((id, i) => {
-        $(id).value = id === "sea_topk" ? "10" : "";
+        tb.appendChild(tr);
       });
-      $("searchTableWrap").innerHTML = "";
-      clearBox("search");
+    } catch(e) {
+      tb.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--bad)">加载书库失败</td></tr>`;
     }
-    function clearAsk() {
-      ["ask_q", "ask_topk", "ask_ft_title", "ask_ft_chapter", "ask_ft_ps", "ask_ft_pe", "ask_ft_tag", "ask_llm_enabled", "ask_llm_model", "ask_llm_temp"].forEach(id => {
-        $(id).value = id === "ask_topk" ? "8" : "";
-      });
-      $("askAnswer").textContent = "";
-      $("askCitations").innerHTML = "";
-      $("askSourcesWrap").innerHTML = "";
-      setAskStatus(null);
-      clearBox("ask");
+  }
+
+  async function delBook(id) {
+    if (!confirm(`确定删除书籍 [ID:${id}] 及所有相关切片吗？此操作不可恢复。`)) return;
+    try {
+      const res = await fetch(`/books/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("删除失败");
+      showToast(`已删除书籍 ${id}`);
+      loadBooks();
+      cachedScopeOptions = {folders:[], files:[]}; // invalidate scope cache
+    } catch(e) {
+      showToast(e.message, true);
     }
+  }
 
-    function setActivePage(page) {
-      const isQa = page === "qa";
-      const qaPage = $("pageQa");
-      const libraryPage = $("pageLibrary");
-      const qaTab = $("tabQa");
-      const libraryTab = $("tabLibrary");
-
-      qaPage.hidden = !isQa;
-      libraryPage.hidden = isQa;
-      qaPage.style.display = "";
-      libraryPage.style.display = "";
-
-      qaTab.classList.toggle("active", isQa);
-      libraryTab.classList.toggle("active", !isQa);
-      qaTab.setAttribute("aria-selected", isQa ? "true" : "false");
-      libraryTab.setAttribute("aria-selected", isQa ? "false" : "true");
-      qaTab.setAttribute("tabindex", isQa ? "0" : "-1");
-      libraryTab.setAttribute("tabindex", isQa ? "-1" : "0");
-
-      if (!isQa) loadBooks();
-    }
-
-    function bindTabNavigation() {
-      const tabbar = document.querySelector(".tabbar");
-      if (!tabbar) return;
-
-      tabbar.addEventListener("click", (e) => {
-        const tab = e.target.closest("[data-page]");
-        if (!tab) return;
-        e.preventDefault();
-        setActivePage(tab.dataset.page);
-      });
-
-      tabbar.addEventListener("keydown", (e) => {
-        const current = e.target.closest("[data-page]");
-        if (!current) return;
-
-        if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-          e.preventDefault();
-          const tabs = Array.from(tabbar.querySelectorAll("[data-page]"));
-          const delta = e.key === "ArrowRight" ? 1 : -1;
-          const currentIndex = tabs.indexOf(current);
-          const next = tabs[(currentIndex + delta + tabs.length) % tabs.length];
-          if (next) {
-            setActivePage(next.dataset.page);
-            next.focus();
-          }
-        }
-      });
-    }
-
-    function bindQaModeTabs() {
-      const tabs = Array.from(document.querySelectorAll("[data-qa-mode]"));
-      for (const tab of tabs) {
-        tab.addEventListener("click", () => syncQaResultView(tab.dataset.qaMode || "ask"));
-      }
-    }
-
-    $("originText").textContent = safeOrigin() || "(unknown)";
-    $("btnHealth").addEventListener("click", refreshHealth);
-    $("btnBooksRefresh").addEventListener("click", () => loadBooks({ focus: true }));
-    $("btnIngest").addEventListener("click", doIngest);
-    $("btnSearch").addEventListener("click", doSearch);
-    $("btnAsk").addEventListener("click", doAsk);
-    $("btnIngestClear").addEventListener("click", clearIngest);
-    $("btnSearchClear").addEventListener("click", clearSearch);
-    $("btnAskClear").addEventListener("click", clearAsk);
-    bindTabNavigation();
-    bindQaModeTabs();
-    setActivePage("qa");
-    syncQaResultView("ask");
-    $("ask_q").addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") doAsk();
-    });
-
-    $("detailClose").addEventListener("click", closeDetail);
-    $("detailCopy").addEventListener("click", copyDetail);
-    $("detailModal").addEventListener("click", (e) => {
-      if (e.target && e.target.dataset && e.target.dataset.close) closeDetail();
-    });
-
-    document.addEventListener("click", (e) => {
-      const detailBtn = e.target.closest("[data-book-detail]");
-      if (detailBtn) {
-        e.preventDefault();
-        loadBookDetail(detailBtn.dataset.bookDetail);
-        return;
-      }
-      const deleteBtn = e.target.closest("[data-book-delete]");
-      if (deleteBtn) {
-        e.preventDefault();
-        deleteBook(deleteBtn.dataset.bookDelete, deleteBtn.dataset.bookTitle || "");
-        return;
-      }
-      const btn = e.target.closest(".hit-open");
-      if (btn && btn.dataset.hitId) {
-        e.preventDefault();
-        e.stopPropagation();
-        openDetailById(btn.dataset.hitId);
-        return;
-      }
-      const card = e.target.closest(".hit-card");
-      if (card && card.dataset.hitId) {
-        const selection = window.getSelection ? window.getSelection().toString() : "";
-        if (selection) return;
-        openDetailById(card.dataset.hitId);
-      }
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeDetail();
-      if (e.key === "Enter" || e.key === " ") {
-        const card = document.activeElement ? document.activeElement.closest(".hit-card") : null;
-        if (card && card.dataset.hitId) {
-          e.preventDefault();
-          openDetailById(card.dataset.hitId);
-        }
-      }
-    });
-
-    refreshHealth();
-  </script>
+</script>
 </body>
 </html>

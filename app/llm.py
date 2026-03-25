@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 
-from settings_store import load_llm_settings
+from settings_store import load_settings
 
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -23,7 +23,7 @@ def _coalesce(*values: object) -> str:
 
 def llm_settings(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     overrides = overrides or {}
-    persisted = load_llm_settings()
+    persisted = load_settings()
 
     env_base_url = _strip(os.getenv("LLM_BASE_URL"))
     env_model = _strip(os.getenv("LLM_MODEL"))

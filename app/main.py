@@ -18,9 +18,14 @@ from schemas import (
     HealthResponse,
     IngestRequest,
     IngestResponse,
+    ScopeOptionsResponse,
     SearchRequest,
     SearchResponse,
+    SettingsResponse,
+    SettingsUpdateRequest,
 )
+from scope import list_scope_options
+from settings_store import load_settings, save_settings
 from search import search_documents
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -40,6 +45,11 @@ async def ui_index() -> FileResponse:
 
 @app.get("/library")
 async def ui_library() -> FileResponse:
+    return FileResponse(str(INDEX_HTML))
+
+
+@app.get("/settings")
+async def ui_settings() -> FileResponse:
     return FileResponse(str(INDEX_HTML))
 
 
@@ -107,3 +117,43 @@ async def book_delete(book_id: int) -> DeleteBookResponse:
     if not deleted:
         raise HTTPException(status_code=404, detail="Book not found")
     return DeleteBookResponse(status="deleted", **deleted)
+
+
+@app.get("/api/settings", response_model=SettingsResponse)
+async def get_settings_api() -> SettingsResponse:
+    data = load_settings()
+    if data.get("api_key"):
+        if len(str(data["api_key"])) > 8:
+            data["api_key"] = "****" + str(data["api_key"])[-4:]
+        else:
+            data["api_key"] = "****"
+    if data.get("access_password"):
+        data["access_password"] = "********"
+    return SettingsResponse(**data)
+
+
+@app.put("/api/settings", response_model=SettingsResponse)
+async def update_settings_api(payload: SettingsUpdateRequest) -> SettingsResponse:
+    current = load_settings()
+    updates = payload.model_dump(exclude_unset=True)
+    if updates.get("api_key") and str(updates["api_key"]).startswith("****"):
+        updates.pop("api_key", None)
+    if updates.get("access_password") == "********":
+        updates.pop("access_password", None)
+
+    current.update(updates)
+    saved = save_settings(current)
+
+    if saved.get("api_key"):
+        if len(str(saved["api_key"])) > 8:
+            saved["api_key"] = "****" + str(saved["api_key"])[-4:]
+        else:
+            saved["api_key"] = "****"
+    if saved.get("access_password"):
+        saved["access_password"] = "********"
+    return SettingsResponse(**saved)
+
+
+@app.get("/api/scope-options", response_model=ScopeOptionsResponse)
+async def get_scope_options_api() -> ScopeOptionsResponse:
+    return list_scope_options()

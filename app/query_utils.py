@@ -16,67 +16,13 @@ def question_type(question: str) -> str:
         return "param"
     if any(k in q for k in ["capacity", "rated output", "quantity", "how many", "kw", "kwe", "generator size"]):
         return "param"
-    if "试航" in question or "试验" in question or "测试" in question:
-        return "trial"
-    if "transformer" in q or "变压器" in question:
-        return "list"
     return "general"
 
 
 def expand_question_queries(question: str) -> list[str]:
+    # 移除特定工程领域的硬编码扩展词，仅保留原问题，系统已具备通用关键词提取和向量检索能力
     queries: list[str] = [question.strip()]
-    q = question.lower()
-
-    expansions: list[str] = []
-    if "试航" in question:
-        expansions.extend([
-            "sea trial",
-            "sea trial test items",
-            "sea trial procedure",
-            "trial items during sea trial",
-        ])
-    if "试验" in question or "测试" in question:
-        expansions.extend(["test items", "tests", "trial items"])
-    if "要求" in question:
-        expansions.extend(["requirements", "procedure", "approval"])
-    if "焊接" in question or "焊" in question:
-        expansions.extend(["welding spec", "WPS"])
-    if "coating" in q or "涂层" in question or "油漆" in question:
-        expansions.extend(["coating system", "paint specification"])
-    if "变压器" in question or "transformer" in q:
-        expansions.extend([
-            "transformer",
-            "transformer capacity",
-            "high voltage transformers",
-            "low voltage transformers",
-        ])
-    if any(k in question for k in ["发电机", "应急发电机", "轴带发电机", "双燃料发电机", "辅助发电机"]) or "generator" in q:
-        expansions.extend([
-            "generator quantity rated output",
-            "generator capacity kW",
-            "generator particulars",
-            "rated output quantity",
-            "emergency generator",
-            "shaft generator",
-            "dual fuel generator",
-        ])
-    if any(k in question for k in ["几台", "多少台", "多大", "容量", "功率", "额定输出", "数量"]) or any(
-        k in q for k in ["capacity", "rated output", "quantity", "how many", "kw", "kwe"]
-    ):
-        expansions.extend([
-            "quantity rated output",
-            "capacity quantity kW",
-            "particulars rated output",
-            "no. of set rated output",
-        ])
-    if "流量计" in question or "flow meter" in q:
-        expansions.extend(["flow meter", "mass type flow meter", "coriolis", "rotameter"])
-
-    for item in expansions:
-        item = item.strip()
-        if item and item not in queries:
-            queries.append(item)
-    return queries[:8]
+    return queries
 
 
 def keyword_terms(question: str) -> set[str]:
@@ -190,19 +136,8 @@ def apply_light_rerank(
         if _TABLE_OF_CONTENTS_RE.search(lowered):
             score -= 1.3
 
-        if qtype == "trial" and any(term in lowered for term in ["sea trial", "trial", "test", "procedure", "approved", "approval"]):
-            score += 0.9
-        if qtype in {"list", "param"} and any(term in lowered for term in ["transformer", "capacity", "quantity", "application", "voltage"]):
-            score += 0.8
-        if qtype == "param" and any(
-            term in lowered
-            for term in ["rated output", "quantity", "no. of set", "capacity", "kw", "kwe", "particulars"]
-        ):
-            score += 1.3
         if qtype == "param" and any(term in lowered for term in ["contents", "table of contents", "................................................................"]):
             score -= 1.0
-        if qtype == "param" and "generator" in lowered:
-            score += 0.6
 
         try:
             hit.score = score

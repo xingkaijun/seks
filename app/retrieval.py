@@ -1,6 +1,8 @@
 import os
 import re
 import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from db import fetch_all
@@ -10,7 +12,7 @@ from schemas import SearchHit, SearchRequest
 
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
-
+_EXECUTOR = ThreadPoolExecutor(max_workers=3)
 
 def _bool_env(name: str, default: bool) -> bool:
     raw = os.getenv(name)
@@ -141,11 +143,11 @@ def _fts_hits(payload: SearchRequest, extra_where: str, extra_params: list, limi
             c.page_start,
             c.page_end,
             c.chunk_text,
-            ts_rank_cd(c.fts, websearch_to_tsquery('simple', %s)) AS score,
+            ts_rank_cd(c.fts, websearch_to_tsquery('jiebacfg', %s)) AS score,
             'fts' AS source
         FROM chunks c
         JOIN books b ON b.id = c.book_id
-        WHERE c.fts @@ websearch_to_tsquery('simple', %s)
+        WHERE c.fts @@ websearch_to_tsquery('jiebacfg', %s)
         {extra_where}
         ORDER BY score DESC, c.id ASC
         LIMIT %s
@@ -238,7 +240,7 @@ def _resolve_rerank(payload_flag: bool | None) -> bool:
     return bool(payload_flag)
 
 
-def hybrid_retrieve(payload: SearchRequest, *, rerank: bool | None = None) -> tuple[list[SearchHit], dict[str, Any]]:
+async def hybrid_retrieve(payload: SearchRequest, *, rerank: bool | None = None) -> tuple[list[SearchHit], dict[str, Any]]:
     started = time.perf_counter()
     query = (payload.query or "").strip()
     limit = max(1, min(payload.top_k, _RETRIEVAL_TOPK_MAX))
@@ -268,18 +270,18 @@ def hybrid_retrieve(payload: SearchRequest, *, rerank: bool | None = None) -> tu
     debug["keyword_terms"] = terms
 
     t0 = time.perf_counter()
-    fts_rows = _fts_hits(payload, extra_where, extra_params, candidate_k)
+    loop = asyncio.get_event_loop()
+    
+    fts_future = loop.run_in_executor(_EXECUTOR, _fts_hits, payload, extra_where, extra_params, candidate_k)
+    keyword_future = loop.run_in_executor(_EXECUTOR, _keyword_hits, terms, extra_where, extra_params, candidate_k)
+    vector_future = loop.run_in_executor(_EXECUTOR, _vector_hits, payload, extra_where, extra_params, candidate_k)
+    
+    fts_rows, keyword_rows, vector_rows = await asyncio.gather(fts_future, keyword_future, vector_future)
     t1 = time.perf_counter()
-    keyword_rows = _keyword_hits(terms, extra_where, extra_params, candidate_k)
-    t2 = time.perf_counter()
-    vector_rows = _vector_hits(payload, extra_where, extra_params, candidate_k)
-    t3 = time.perf_counter()
 
     debug["signals"] = {"fts": len(fts_rows), "keyword": len(keyword_rows), "vector": len(vector_rows)}
     debug["timing_ms"] = {
-        "fts": round((t1 - t0) * 1000, 2),
-        "keyword": round((t2 - t1) * 1000, 2),
-        "vector": round((t3 - t2) * 1000, 2),
+        "parallel_total": round((t1 - t0) * 1000, 2),
     }
 
     merged: dict[int, dict[str, Any]] = {}
